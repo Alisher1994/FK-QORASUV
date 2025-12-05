@@ -19,7 +19,8 @@ RUN apt-get update && apt-get install -y \
     libv4l-dev \
     libxvidcore-dev \
     libx264-dev \
-    libatlas-base-dev \
+    libopenblas-dev \
+    liblapack-dev \
     gfortran \
     python3-dev \
     libpq-dev \
