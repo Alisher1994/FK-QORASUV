@@ -28,7 +28,8 @@ RUN apt-get update && apt-get install -y \
 # Установка новой версии CMake (требуется для dlib)
 RUN wget -q https://github.com/Kitware/CMake/releases/download/v3.27.7/cmake-3.27.7-linux-x86_64.tar.gz && \
     tar -xzf cmake-3.27.7-linux-x86_64.tar.gz && \
-    cp -r cmake-3.27.7-linux-x86_64/* /usr/local/ && \
+    cp -r cmake-3.27.7-linux-x86_64/bin/* /usr/local/bin/ && \
+    cp -r cmake-3.27.7-linux-x86_64/share/* /usr/local/share/ && \
     rm -rf cmake-3.27.7-linux-x86_64.tar.gz cmake-3.27.7-linux-x86_64
 
 # Установка dlib с поддержкой новой CMake
