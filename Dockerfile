@@ -4,7 +4,6 @@ FROM python:3.11-slim
 # Установка системных зависимостей для face_recognition и OpenCV
 RUN apt-get update && apt-get install -y \
     build-essential \
-    cmake \
     git \
     wget \
     unzip \
@@ -26,7 +25,13 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Установка dlib
+# Установка новой версии CMake (требуется для dlib)
+RUN wget -q https://github.com/Kitware/CMake/releases/download/v3.27.7/cmake-3.27.7-linux-x86_64.tar.gz && \
+    tar -xzf cmake-3.27.7-linux-x86_64.tar.gz && \
+    cp -r cmake-3.27.7-linux-x86_64/* /usr/local/ && \
+    rm -rf cmake-3.27.7-linux-x86_64.tar.gz cmake-3.27.7-linux-x86_64
+
+# Установка dlib с поддержкой новой CMake
 RUN pip install --no-cache-dir dlib==19.24.2
 
 # Создание рабочей директории
