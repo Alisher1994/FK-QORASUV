@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ученики</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="sidebar">
+        <h2>⚽ FK QORASUV</h2>
+        <nav>
+            <a href="{{ url_for('dashboard') }}">📊 Главная</a>
+            <a href="{{ url_for('students') }}" class="active">👥 Ученики</a>
+            <a href="{{ url_for('groups_page') }}">👨‍👩‍👦 Группы</a>
+            <a href="{{ url_for('tariffs_page') }}">💳 Тарифы</a>
+            <a href="{{ url_for('finances_page') }}">💰 Финансы</a>
+            <a href="{{ url_for('attendance_page') }}">📋 Посещаемость</a>
+            <a href="{{ url_for('camera_page') }}">📷 Камера</a>
+            <a href="{{ url_for('expenses_page') }}">📤 Расходы</a>
+            <a href="{{ url_for('logout') }}">🚪 Выход</a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <div class="page-header">
+            <h1>👥 Ученики</h1>
+            <button id="addStudentBtn" class="btn-primary">➕ Добавить ученика</button>
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Фото</th>
+                    <th>Номер</th>
+                    <th>Имя</th>
+                    <th>Группа</th>
+                    <th>Год рождения</th>
+                    <th>Дата принятия</th>
+                    <th>Телефон</th>
+                    <th>Дата последней оплаты</th>
+                    <th>Сумма оплаты</th>
+                    <th>Долг</th>
+                    <th>Баланс</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr class="{% if student.balance <= 2 %}low-balance{% endif %} {% if student.status == 'blacklist' %}blacklisted{% endif %}">
+                    <td>
+                        {% if student.photo_path %}
+                        <img src="{{ url_for('static', filename=student.photo_path.replace('frontend/static/', '').replace('\\', '/')) }}" class="student-avatar">
+                        {% else %}
+                        <div class="avatar-placeholder">👤</div>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ student.student_number }}</strong></td>
+                    {% set payment = payment_info.get(student.id) if payment_info else None %}
+                    <td>{{ student.full_name }}</td>
+                    <td>{{ student.group.name if student.group else 'Без группы' }}</td>
+                    <td>{{ student.birth_year or '-' }}</td>
+                    <td>{{ student.admission_date|format_date if student.admission_date else '-' }}</td>
+                    <td>{{ student.phone or '-' }}</td>
+                    <td>{{ payment.date if payment and payment.date else '-' }}</td>
+                    <td>
+                        {% if payment is not none and payment.amount is not none %}
+                            {{ payment.amount|format_thousand }}
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>
+                        {% if payment is not none and payment.debt is not none %}
+                            {{ payment.debt|format_thousand }}
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>
+                        {% if student.club_funded %}
+                        <span class="balance-badge" style="background: #9b59b6;">♾️ Клуб</span>
+                        {% else %}
+                        <span class="balance-badge {% if student.balance <= 2 %}low{% endif %}">
+                            {{ student.balance|format_thousand }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if student.status == 'active' %}
+                        <span style="color: #27ae60;">✓ Активен</span>
+                        {% elif student.status == 'inactive' %}
+                        <span style="color: #95a5a6;">○ Неактивен</span>
+                        {% elif student.status == 'blacklist' %}
+                        <span style="color: #e74c3c;">⚠️ ЧС</span>
+                        {% endif %}
+                    </td>
+                    <td class="action-buttons">
+                        <button class="btn-small btn-success add-payment-btn" data-student-id="{{ student.id }}">💳</button>
+                        <button class="btn-small btn-info edit-student-btn" data-student-id="{{ student.id }}">✏️</button>
+                        <button class="btn-small btn-danger delete-student-btn" data-student-id="{{ student.id }}" data-student-name="{{ student.full_name }}">🗑️</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Модальное окно: Добавить ученика -->
+    <div id="addStudentModal" class="modal">
+        <div class="modal-content" style="max-width: 1100px;">
+            <span class="close">&times;</span>
+            <h2>Добавить ученика</h2>
+            
+            <form id="addStudentForm" enctype="multipart/form-data">
+                <div class="form-columns" style="display: grid; grid-template-columns: 1fr 1fr 0.8fr; gap: 20px; align-items: start;">
+                    <!-- Левая колонка -->
+                    <div>
+                        <!-- Основная информация -->
+                        <div class="form-block">
+                            <h3>👤 Основная информация</h3>
+                            <div class="form-group">
+                                <label>Фамилия *</label>
+                                <input type="text" name="last_name" id="last_name" required placeholder="Иванов">
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Имя *</label>
+                                    <input type="text" name="first_name" id="first_name" required placeholder="Иван">
+                                </div>
+                                <div class="form-group">
+                                    <label>Отчество</label>
+                                    <input type="text" name="middle_name" id="middle_name" placeholder="Иванович">
+                                </div>
+                            </div>
+                            <input type="hidden" name="full_name" id="full_name_hidden">
+
+                            <div class="form-group">
+                                <label>№ школы</label>
+                                <input type="text" name="school_number" placeholder="Школа № 12">
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Телефон ученика</label>
+                                    <input type="tel" name="phone" placeholder="+998 XX XXX XX XX">
+                                </div>
+                                <div class="form-group">
+                                    <label>Телефон родителя</label>
+                                    <input type="tel" name="parent_phone" placeholder="+998 XX XXX XX XX">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Фото *</label>
+                                <input type="file" name="photo" accept="image/*" required>
+                                <small>Фото должно чётко показывать лицо</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Адрес -->
+                        <div class="form-block">
+                            <h3>📍 Адрес проживания</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Город</label>
+                                    <select name="city" id="citySelect">
+                                        <option value="">Выберите город</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Район</label>
+                                    <select name="district" id="districtSelect" disabled>
+                                        <option value="">Сначала выберите город</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Улица</label>
+                                    <input type="text" name="street" placeholder="Название улицы">
+                                </div>
+                                <div class="form-group">
+                                    <label>Дом/Квартира</label>
+                                    <input type="text" name="house_number" placeholder="Дом 12, кв. 45">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Средняя колонка -->
+                    <div>
+                        <!-- Учебные данные -->
+                        <div class="form-block">
+                            <h3>📌 Учебные данные</h3>
+                            <div class="form-group">
+                                <label>Номер ученика *</label>
+                                <input type="text" name="student_number" required placeholder="ST0001">
+                                <small>Введите уникальный номер, который присваивает администратор</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Дата принятия</label>
+                                <input type="date" name="admission_date" id="admission_date">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Группа</label>
+                                <select name="group_id" id="groupSelect">
+                                    <option value="">Без группы</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Статус</label>
+                                <select name="status" id="statusSelect" onchange="toggleBlacklistReason()">
+                                    <option value="active">Активный</option>
+                                    <option value="inactive">Неактивный</option>
+                                    <option value="blacklist">Чёрный список</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="blacklistReasonBlock" style="display: none;">
+                                <label>Причина добавления в чёрный список</label>
+                                <textarea name="blacklist_reason" rows="3" placeholder="Опишите причину..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Паспортные данные -->
+                        <div class="form-block">
+                            <h3>🆔 Паспортные данные</h3>
+                            <div class="form-row three-col">
+                                <div class="form-group">
+                                    <label>Год рождения</label>
+                                    <input type="number" name="birth_year" min="1900" max="2025" placeholder="2010">
+                                </div>
+                                <div class="form-group">
+                                    <label>Серия паспорта</label>
+                                    <input type="text" name="passport_series" placeholder="AA">
+                                </div>
+                                <div class="form-group">
+                                    <label>Номер паспорта</label>
+                                    <input type="text" name="passport_number" placeholder="1234567">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Кем выдан</label>
+                                <input type="text" name="passport_issued_by" placeholder="МВД РУз">
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Дата выдачи</label>
+                                    <input type="date" name="passport_issue_date">
+                                </div>
+                                <div class="form-group">
+                                    <label>Срок действия</label>
+                                    <input type="date" name="passport_expiry_date">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                        
+                    <!-- Правая колонка -->
+                    <div>
+                        <!-- Тариф -->
+                        <div class="form-block">
+                            <h3>💳 Тариф</h3>
+                            <div class="form-group">
+                                <label>Выберите тариф</label>
+                                <select name="tariff_id" id="tariffSelect">
+                                    <option value="">Без тарифа</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Финансирование -->
+                        <div class="form-block">
+                            <h3>💰 Финансирование</h3>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="club_funded" value="true">
+                                    <span>Финансирование за счёт клуба</span>
+                                </label>
+                                <small style="display: block; margin-top: 5px; color: #7f8c8d;">
+                                    Ученик может посещать занятия без списания баланса
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary btn-large" style="margin-top: 20px; width: 100%;">➕ Добавить ученика</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Редактировать ученика -->
+    <div id="editStudentModal" class="modal">
+        <div class="modal-content" style="max-width: 1100px;">
+            <span class="close">&times;</span>
+            <h2>Редактировать ученика</h2>
+            
+            <form id="editStudentForm" enctype="multipart/form-data">
+                <input type="hidden" id="edit_student_id">
+                
+                <div class="form-columns" style="display: grid; grid-template-columns: 1fr 1fr 0.8fr; gap: 20px; align-items: start;">
+                    <!-- Левая колонка -->
+                    <div>
+                        <!-- Основная информация -->
+                        <div class="form-block">
+                            <h3>👤 Основная информация</h3>
+                            <div class="form-group">
+                                <label>Фамилия *</label>
+                                <input type="text" id="edit_last_name" required>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Имя *</label>
+                                    <input type="text" id="edit_first_name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Отчество</label>
+                                    <input type="text" id="edit_middle_name" placeholder="Иванович">
+                                </div>
+                            </div>
+                            <input type="hidden" id="edit_full_name" name="full_name" required>
+
+                            <div class="form-group">
+                                <label>№ школы</label>
+                                <input type="text" id="edit_school_number" name="school_number" placeholder="Школа № 12">
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Телефон</label>
+                                    <input type="tel" id="edit_phone" name="phone" placeholder="+998 90 123 45 67">
+                                </div>
+                                <div class="form-group">
+                                    <label>Телефон родителя</label>
+                                    <input type="tel" id="edit_parent_phone" name="parent_phone" placeholder="+998 90 123 45 67">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Фото (оставьте пустым, чтобы не менять)</label>
+                                <input type="file" id="edit_photo" name="photo" accept="image/*">
+                            </div>
+                        </div>
+                        
+                        <!-- Адрес -->
+                        <div class="form-block">
+                            <h3>📍 Адрес</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Город</label>
+                                    <select id="edit_citySelect" name="city">
+                                        <option value="">Выберите город</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Район</label>
+                                    <select id="edit_districtSelect" name="district" disabled>
+                                        <option value="">Сначала выберите город</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Улица</label>
+                                    <input type="text" id="edit_street" name="street">
+                                </div>
+                                <div class="form-group">
+                                    <label>Дом</label>
+                                    <input type="text" id="edit_house_number" name="house_number">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Средняя колонка -->
+                    <div>
+                        <!-- Учебные данные -->
+                        <div class="form-block">
+                            <h3>📌 Учебные данные</h3>
+                            <div class="form-group">
+                                <label>Номер ученика *</label>
+                                <input type="text" id="edit_student_number" name="student_number" required>
+                                <small>Используйте уникальный номер, известный администраторам</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Дата принятия</label>
+                                <input type="date" id="edit_admission_date" name="admission_date">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Группа</label>
+                                <select id="edit_groupSelect" name="group_id">
+                                    <option value="">Без группы</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Статус</label>
+                                <select id="edit_statusSelect" name="status" onchange="toggleEditBlacklistReason()">
+                                    <option value="active">Активен</option>
+                                    <option value="inactive">Неактивен</option>
+                                    <option value="blacklist">Чёрный список</option>
+                                </select>
+                            </div>
+
+                            <div id="edit_blacklistReasonBlock" class="form-group" style="display: none;">
+                                <label>Причина добавления в чёрный список</label>
+                                <textarea id="edit_blacklist_reason" name="blacklist_reason" rows="3" placeholder="Опишите причину..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Паспортные данные -->
+                        <div class="form-block">
+                            <h3>📄 Паспортные данные</h3>
+                            <div class="form-group">
+                                <label>Год рождения</label>
+                                <input type="number" id="edit_birth_year" name="birth_year" min="1950" max="2020" placeholder="2010">
+                            </div>
+                            
+                            <div class="form-row three-col">
+                                <div class="form-group">
+                                    <label>Серия</label>
+                                    <input type="text" id="edit_passport_series" name="passport_series" placeholder="AB">
+                                </div>
+                                <div class="form-group">
+                                    <label>Номер</label>
+                                    <input type="text" id="edit_passport_number" name="passport_number" placeholder="1234567">
+                                </div>
+                                <div class="form-group">
+                                    <label>Кем выдан</label>
+                                    <input type="text" id="edit_passport_issued_by" name="passport_issued_by" placeholder="IIB">
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Дата выдачи</label>
+                                    <input type="date" id="edit_passport_issue_date" name="passport_issue_date">
+                                </div>
+                                <div class="form-group">
+                                    <label>Срок действия</label>
+                                    <input type="date" id="edit_passport_expiry_date" name="passport_expiry_date">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                        
+                    <!-- Правая колонка -->
+                    <div>
+                        <!-- Финансирование -->
+                        <div class="form-block">
+                            <h3>💰 Финансирование</h3>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="edit_club_funded" name="club_funded" value="true">
+                                    <span>Финансирование за счёт клуба</span>
+                                </label>
+                                <small style="display: block; margin-top: 5px; color: #7f8c8d;">
+                                    Ученик может посещать занятия без списания баланса
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary btn-large" style="margin-top: 20px; width: 100%;">💾 Сохранить изменения</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Оплата -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <span class="close">&times;</span>
+            <h2>Добавить оплату</h2>
+            
+            <form id="paymentForm">
+                <input type="hidden" id="payment_student_id">
+                <input type="hidden" id="student_tariff_price">
+                
+                <!-- Переключатель года -->
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <button type="button" class="btn-secondary" id="prevYearBtn" style="margin-right: 10px;">← <span id="prevYear"></span></button>
+                    <span style="font-size: 18px; font-weight: bold; margin: 0 20px;" id="currentYear"></span>
+                    <button type="button" class="btn-secondary" id="nextYearBtn" style="margin-left: 10px;"><span id="nextYear"></span> →</button>
+                </div>
+
+                <!-- Помесячная оплата -->
+                <div id="monthlyPayments" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
+                    <!-- Месяцы генерируются через JS -->
+                </div>
+
+                <!-- Форма оплаты за выбранный месяц -->
+                <div id="paymentInputSection" style="display: none; background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px;">
+                    <h3 style="margin-top: 0;">Оплата за <span id="selectedMonthName"></span></h3>
+                    
+                    <!-- История частичных оплат -->
+                    <div id="partialPaymentsHistory" style="margin-bottom: 15px;">
+                        <!-- Генерируется через JS -->
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Дата оплаты</label>
+                            <input type="date" id="payment_date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Сумма оплаты (сум) *</label>
+                            <input type="number" id="payment_amount" required min="0" step="1000" placeholder="Введите сумму">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Примечание</label>
+                        <textarea id="payment_notes" rows="2" placeholder="Комментарий к оплате"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn-success btn-large" style="width: 100%;">💰 Добавить оплату</button>
+                </div>
+
+                <!-- Если месяц не выбран -->
+                <div id="noMonthSelected" style="text-align: center; padding: 40px; color: #95a5a6;">
+                    <p style="font-size: 16px;">👆 Выберите месяц для добавления оплаты</p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/students.js') }}"></script>
+</body>
+</html>

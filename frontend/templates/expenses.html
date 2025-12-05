@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Расходы школы</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="sidebar">
+        <h2>⚽ FK QORASUV</h2>
+        <nav>
+            <a href="{{ url_for('dashboard') }}">📊 Главная</a>
+            <a href="{{ url_for('students') }}">👥 Ученики</a>
+            <a href="{{ url_for('groups_page') }}">👨‍👩‍👦 Группы</a>
+            <a href="{{ url_for('tariffs_page') }}">💳 Тарифы</a>
+            <a href="{{ url_for('finances_page') }}">💰 Финансы</a>
+            <a href="{{ url_for('attendance_page') }}">📋 Посещаемость</a>
+            <a href="{{ url_for('camera_page') }}">📷 Камера</a>
+            <a href="{{ url_for('expenses_page') }}" class="active">📤 Расходы</a>
+            <a href="{{ url_for('logout') }}">🚺 Выход</a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <div class="page-header">
+            <h1>💰 Расходы школы</h1>
+            <button id="addExpenseBtn" class="btn-primary">➕ Добавить расход</button>
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Категория</th>
+                    <th>Сумма</th>
+                    <th>Описание</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for expense in expenses %}
+                <tr>
+                    <td>{{ expense.expense_date.strftime('%d.%m.%Y %H:%M') }}</td>
+                    <td>{{ expense.category }}</td>
+                    <td>{{ "%.0f"|format(expense.amount) }} сум</td>
+                    <td>{{ expense.description or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Модальное окно: Добавить расход -->
+    <div id="addExpenseModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Добавить расход</h2>
+            
+            <form id="addExpenseForm">
+                <div class="form-group">
+                    <label>Категория *</label>
+                    <select name="category" required>
+                        <option value="Аренда">Аренда</option>
+                        <option value="Зарплата">Зарплата</option>
+                        <option value="Оборудование">Оборудование</option>
+                        <option value="Коммунальные">Коммунальные услуги</option>
+                        <option value="Прочее">Прочее</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Сумма (сум) *</label>
+                    <input type="number" name="amount" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Описание</label>
+                    <textarea name="description" rows="3"></textarea>
+                </div>
+                
+                <button type="submit" class="btn-primary">Добавить</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/expenses.js') }}"></script>
+</body>
+</html>

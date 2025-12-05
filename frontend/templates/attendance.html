@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Посещаемость</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="sidebar">
+        <h2>⚽ FK QORASUV</h2>
+        <nav>
+            <a href="{{ url_for('dashboard') }}">📊 Главная</a>
+            <a href="{{ url_for('students') }}">👥 Ученики</a>
+            <a href="{{ url_for('groups_page') }}">👨‍👩‍👦 Группы</a>
+            <a href="{{ url_for('tariffs_page') }}">💳 Тарифы</a>
+            <a href="{{ url_for('finances_page') }}">💰 Финансы</a>
+            <a href="{{ url_for('attendance_page') }}" class="active">📋 Посещаемость</a>
+            <a href="{{ url_for('camera_page') }}">📷 Камера</a>
+            <a href="{{ url_for('expenses_page') }}">📤 Расходы</a>
+            <a href="{{ url_for('logout') }}">🚺 Выход</a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <h1>📋 Посещаемость</h1>
+        
+        <div class="filters-panel" style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="display: grid; grid-template-columns: 150px 150px 200px 250px auto; gap: 15px; align-items: end;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #555;">📅 Год:</label>
+                    <select id="filterYear" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                        <option value="">Все годы</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #555;">📆 Месяц:</label>
+                    <select id="filterMonth" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                        <option value="">Все месяцы</option>
+                        <option value="1">Январь</option>
+                        <option value="2">Февраль</option>
+                        <option value="3">Март</option>
+                        <option value="4">Апрель</option>
+                        <option value="5">Май</option>
+                        <option value="6">Июнь</option>
+                        <option value="7">Июль</option>
+                        <option value="8">Август</option>
+                        <option value="9">Сентябрь</option>
+                        <option value="10">Октябрь</option>
+                        <option value="11">Ноябрь</option>
+                        <option value="12">Декабрь</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #555;">👥 Группа:</label>
+                    <select id="filterGroup" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                        <option value="">Все группы</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #555;">🧑 Ученик:</label>
+                    <div style="position: relative;">
+                        <input type="text" id="filterStudentSearch" placeholder="Поиск ученика..." 
+                            style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                        <div id="studentDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; border-radius: 0 0 4px 4px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="applyFilters()" style="padding: 8px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500;">Применить</button>
+                    <button onclick="resetFilters()" style="padding: 8px 20px; background: #95a5a6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500;">Сбросить</button>
+                </div>
+            </div>
+        </div>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Время прихода</th>
+                    <th>Ученик</th>
+                    <th>Группа</th>
+                    <th>Остаток занятий</th>
+                </tr>
+            </thead>
+            <tbody id="attendanceTableBody">
+                <tr><td colspan="3" class="info-text">Загрузка...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель управления</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="sidebar">
+        <h2>⚽ FK QORASUV</h2>
+        <nav>
+            <a href="{{ url_for('dashboard') }}" class="active">📊 Главная</a>
+            <a href="{{ url_for('students') }}">👥 Ученики</a>
+            <a href="{{ url_for('groups_page') }}">👨‍👩‍👦 Группы</a>
+            <a href="{{ url_for('attendance_page') }}">📋 Посещаемость</a>
+            <a href="{{ url_for('camera_page') }}">📷 Камера</a>
+            <a href="{{ url_for('expenses_page') }}">💰 Расходы</a>
+            <a href="{{ url_for('logout') }}">🚪 Выход</a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <h1>Панель управления</h1>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Всего учеников</h3>
+                <p class="stat-number">{{ total_students }}</p>
+            </div>
+            
+            <div class="stat-card warning">
+                <h3>Мало занятий</h3>
+                <p class="stat-number">{{ students_low_balance }}</p>
+            </div>
+            
+            <div class="stat-card">
+                <h3>Сегодня на занятии</h3>
+                <p class="stat-number">{{ today_attendance }}</p>
+            </div>
+            
+            <div class="stat-card success">
+                <h3>Доход (месяц)</h3>
+                <p class="stat-number">{{ "%.0f"|format(month_income) }} сум</p>
+            </div>
+            
+            <div class="stat-card danger">
+                <h3>Расходы (месяц)</h3>
+                <p class="stat-number">{{ "%.0f"|format(month_expenses) }} сум</p>
+            </div>
+            
+            <div class="stat-card {% if profit >= 0 %}success{% else %}danger{% endif %}">
+                <h3>Прибыль (месяц)</h3>
+                <p class="stat-number">{{ "%.0f"|format(profit) }} сум</p>
+            </div>
+        </div>
+
+        <div class="quick-actions">
+            <h2>Быстрые действия</h2>
+            <div class="action-buttons">
+                <a href="{{ url_for('students') }}" class="btn-primary">➕ Добавить ученика</a>
+                <a href="{{ url_for('camera_page') }}" class="btn-success">📷 Открыть камеру</a>
+                <a href="{{ url_for('attendance_page') }}" class="btn-info">📋 Посещаемость</a>
+            </div>
+        </div>
+
+        <div class="form-block" style="margin-top: 30px;">
+            <h3>📈 Финансы по месяцам</h3>
+            <div class="month-grid">
+                {% set month_names = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'] %}
+                {% for i in range(12) %}
+                <div class="month-cell">
+                    <div class="month-title">{{ month_names[i] }}</div>
+                    <div class="bars" data-month-index="{{ i }}">
+                        <div class="bar income" title="Приход"><span class="bar-value"></span></div>
+                        <div class="bar expense" title="Расход"><span class="bar-value"></span></div>
+                        <div class="bar balance" title="Остаток"><span class="bar-value"></span></div>
+                    </div>
+                    <div class="legend">
+                        <span class="legend-item income">Приход</span>
+                        <span class="legend-item expense">Расход</span>
+                        <span class="legend-item balance">Остаток</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <script>
+    // Fetch monthly finance data and render bar heights and values
+    // Expected API response format:
+    // { months: [ { income: number, expense: number, balance: number }, ... 12 items ] }
+    (async function() {
+        try {
+            const res = await fetch('/api/finances/monthly');
+            if (!res.ok) return; // gracefully skip if endpoint not available
+            const data = await res.json();
+            if (!data || !Array.isArray(data.months)) return;
+            const months = data.months;
+            const maxVal = Math.max(1, ...months.flatMap(m => [m.income||0, m.expense||0, m.balance||0]));
+            // Render each month
+            document.querySelectorAll('.bars').forEach((barsEl, idx) => {
+                const m = months[idx] || { income: 0, expense: 0, balance: 0 };
+                const items = [
+                    { cls: '.income', val: m.income || 0 },
+                    { cls: '.expense', val: m.expense || 0 },
+                    { cls: '.balance', val: m.balance || 0 }
+                ];
+                items.forEach(item => {
+                    const bar = barsEl.querySelector(item.cls);
+                    if (bar) {
+                        const pct = Math.min(100, Math.round((item.val / maxVal) * 100));
+                        bar.style.height = pct + '%';
+                        const valEl = bar.querySelector('.bar-value');
+                        if (valEl) {
+                            valEl.textContent = item.val ? new Intl.NumberFormat('ru-RU').format(item.val) : '';
+                        }
+                    }
+                });
+            });
+        } catch (e) {
+            // silently fail; chart will show default empty bars
+            console.warn('Не удалось загрузить финансы по месяцам', e);
+        }
+    })();
+    </script>
+</body>
+</html>
