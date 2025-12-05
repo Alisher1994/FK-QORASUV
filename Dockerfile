@@ -1,47 +1,60 @@
-# Используем Python образ с предустановленными библиотеками для face_recognition
+# Используем образ с поддержкой OpenCV и face_recognition
 FROM python:3.11-slim
 
-# Устанавливаем системные зависимости
+# Установка системных зависимостей для face_recognition и OpenCV
 RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
-    libopenblas-dev \
-    liblapack-dev \
-    libx11-dev \
-    libgtk-3-dev \
-    libboost-python-dev \
-    libboost-thread-dev \
+    git \
+    wget \
+    unzip \
+    pkg-config \
+    libopencv-dev \
+    libjpeg-dev \
+    libpng-dev \
+    libtiff-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libswscale-dev \
+    libv4l-dev \
+    libxvidcore-dev \
+    libx264-dev \
+    libatlas-base-dev \
+    gfortran \
+    python3-dev \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Создаем рабочую директорию
+# Установка dlib
+RUN pip install --no-cache-dir dlib==19.24.2
+
+# Создание рабочей директории
 WORKDIR /app
 
-# Копируем файлы requirements
+# Копирование requirements.txt
 COPY requirements.txt .
 
-# Возвращаем face_recognition в requirements
-RUN pip install --no-cache-dir \
-    Flask==3.0.0 \
-    Flask-SQLAlchemy==3.1.1 \
-    Flask-Login==0.6.3 \
-    Flask-Bcrypt==1.0.1 \
-    Pillow==10.1.0 \
-    numpy==1.26.2 \
-    python-dotenv==1.0.0 \
-    Werkzeug==3.0.1 \
-    gunicorn==21.2.0 \
-    dlib==19.24.2 \
-    face-recognition==1.3.0 \
-    opencv-python-headless==4.8.1.78
+# Установка Python зависимостей
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем весь проект
+# Копирование всего проекта
 COPY . .
 
-# Создаем необходимые директории
+# Создание необходимых директорий
 RUN mkdir -p database frontend/static/uploads
 
-# Указываем порт
-EXPOSE 8080
+# Установка переменных окружения
+ENV PYTHONUNBUFFERED=1
+ENV FLASK_APP=app.py
 
-# Запускаем приложение
-CMD gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 2
+# Открытие порта
+EXPOSE $PORT
+
+# Создание startup скрипта
+RUN echo '#!/bin/bash\n\
+python init_db.py\n\
+gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120' > /app/start.sh && \
+chmod +x /app/start.sh
+
+# Запуск приложения
+CMD ["/app/start.sh"]

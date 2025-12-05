@@ -20,7 +20,18 @@ app = Flask(__name__,
 
 # Конфигурация для production/development
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'database', 'football_school.db'))
+
+# PostgreSQL URL для Railway (автоматически устанавливается)
+database_url = os.environ.get('DATABASE_URL')
+if database_url:
+    # Railway PostgreSQL использует postgres://, но SQLAlchemy требует postgresql://
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+else:
+    # Локальная разработка - SQLite
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'database', 'football_school.db')
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'frontend', 'static', 'uploads')
 
