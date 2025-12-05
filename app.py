@@ -3,12 +3,12 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from flask_bcrypt import Bcrypt
 from werkzeug.utils import secure_filename
 import os
-import face_recognition
+# import face_recognition  # Отключено для Railway (требует dlib/cmake)
 from datetime import datetime, timedelta, time, date
 from sqlalchemy import func
 
 from backend.models.models import db, User, Student, Payment, Attendance, Expense, Group, Tariff, ClubSettings
-from backend.services.face_service import FaceRecognitionService
+# from backend.services.face_service import FaceRecognitionService  # Отключено для Railway
 from backend.data.locations import get_cities, get_districts
 
 # Получить абсолютный путь к папке проекта
@@ -31,7 +31,8 @@ bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-face_service = FaceRecognitionService()
+# face_service = FaceRecognitionService()  # Отключено для Railway
+face_service = None  # Распознавание лиц отключено на production
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -326,14 +327,22 @@ def add_student():
         
         # Сохранить фото и извлечь face encoding
         if photo:
-            photo_path = face_service.save_student_photo(photo, student.id)
-            student.photo_path = photo_path
-            
-            encoding = face_service.extract_face_encoding(photo_path)
-            if encoding is not None:
-                student.set_face_encoding(encoding)
+            if face_service:
+                photo_path = face_service.save_student_photo(photo, student.id)
+                student.photo_path = photo_path
+                
+                encoding = face_service.extract_face_encoding(photo_path)
+                if encoding is not None:
+                    student.set_face_encoding(encoding)
+                else:
+                    return jsonify({'success': False, 'message': 'Лицо не обнаружено на фото'}), 400
             else:
-                return jsonify({'success': False, 'message': 'Лицо не обнаружено на фото'}), 400
+                # Сохранить фото без распознавания (для production без face_recognition)
+                filename = secure_filename(photo.filename)
+                photo_filename = f"student_{student.id}_{student.full_name.replace(' ', '_')}.{filename.rsplit('.', 1)[1]}"
+                photo_path = os.path.join(UPLOAD_FOLDER, photo_filename)
+                photo.save(photo_path)
+                student.photo_path = f"/static/uploads/{photo_filename}"
         
         db.session.commit()
         
@@ -473,15 +482,15 @@ def update_student(student_id):
                 photo.save(photo_path)
                 student.photo_path = photo_path
                 
-                # Создать новый face encoding
-                try:
-                    image = face_recognition.load_image_file(photo_path)
-                    encodings = face_recognition.face_encodings(image)
-                    if encodings:
-                        student.face_encoding = encodings[0].tobytes()
-                        reload_face_encodings()
-                except Exception as e:
-                    print(f"Ошибка обработки фото: {e}")
+                # Создать новый face encoding (отключено для Railway)
+                # try:
+                #     image = face_recognition.load_image_file(photo_path)
+                #     encodings = face_recognition.face_encodings(image)
+                #     if encodings:
+                #         student.face_encoding = encodings[0].tobytes()
+                #         reload_face_encodings()
+                # except Exception as e:
+                #     print(f"Ошибка обработки фото: {e}")
         
         db.session.commit()
         return jsonify({'success': True})
@@ -1459,6 +1468,8 @@ def recognize_face():
             temp_path = os.path.join(app.config['UPLOAD_FOLDER'], 'temp_recognize.jpg')
             image_file.save(temp_path)
             
+            if not face_service:
+                return jsonify({'success': False, 'error': 'Распознавание лиц недоступно на production'}), 503
             student_id = face_service.recognize_face_from_image(temp_path)
             os.remove(temp_path)
             
@@ -1489,6 +1500,8 @@ def recognize_multiple_faces():
             temp_path = os.path.join(app.config['UPLOAD_FOLDER'], 'temp_recognize.jpg')
             image_file.save(temp_path)
             
+            if not face_service:
+                return jsonify({'success': False, 'error': 'Распознавание лиц недоступно на production'}), 503
             recognized = face_service.recognize_multiple_faces_from_image(temp_path)
             os.remove(temp_path)
             
@@ -1521,7 +1534,8 @@ def recognize_multiple_faces():
 def reload_face_encodings():
     """Перезагрузить все face encodings в память"""
     students = Student.query.filter_by(status='active').all()
-    face_service.load_student_encodings(students)
+    if face_service:
+        face_service.load_student_encodings(students)
 
 
 # ===== ИНИЦИАЛИЗАЦИЯ =====
