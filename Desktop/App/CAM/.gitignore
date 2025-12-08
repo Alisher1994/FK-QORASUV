@@ -1,0 +1,26 @@
+../
+../../
+../../../
+../../../../
+**/Application Data/
+**/Cookies/
+**/Local Settings/
+**/NetHood/
+**/PrintHood/
+**/Recent/
+**/SendTo/
+**/.android/
+**/.cache/
+**/.config/
+**/.docker/
+**/AppData/
+**/Documents/
+**/Downloads/
+**/OneDrive/
+**/Pictures/
+**/Videos/
+*.LOG1
+*.LOG2
+NTUSER.DAT
+ntuser.ini
+desktop.ini
