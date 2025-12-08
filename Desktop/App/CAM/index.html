@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Демонстрация встроенной камеры</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 1rem;
+      gap: 1rem;
+    }
+    button {
+      padding: 0.6rem 1.4rem;
+      border: none;
+      border-radius: 0.4rem;
+      background: #238636;
+      color: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #38404b;
+      cursor: not-allowed;
+    }
+    video {
+      width: min(100%, 640px);
+      max-height: 480px;
+      background: #05090d;
+      border-radius: 0.6rem;
+      object-fit: cover;
+    }
+    #status {
+      font-size: 0.9rem;
+      text-align: center;
+      color: #8b949e;
+    }
+  </style>
+</head>
+<body>
+  <h1>Встроенная камера</h1>
+  <p>Нажмите кнопку, чтобы разрешить доступ и увидеть поток с вашей камеры.</p>
+  <button id="startBtn">Запустить камеру</button>
+  <video id="camera" autoplay playsinline></video>
+  <div id="status">Статус: ожидание</div>
+
+  <script>
+    const startBtn = document.getElementById("startBtn");
+    const video = document.getElementById("camera");
+    const status = document.getElementById("status");
+
+    async function startCamera() {
+      startBtn.disabled = true;
+      status.textContent = "Статус: запрашиваем доступ...";
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user"
+          },
+          audio: false
+        });
+        video.srcObject = stream;
+        status.textContent = "Статус: камера работает";
+      } catch (error) {
+        console.error("Ошибка доступа к камере:", error);
+        status.textContent = `Ошибка: ${error.name} — ${error.message}`;
+        startBtn.disabled = false;
+      }
+    }
+
+    startBtn.addEventListener("click", startCamera);
+  </script>
+</body>
+</html>
