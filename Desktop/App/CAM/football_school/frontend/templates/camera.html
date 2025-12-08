@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Распознавание лиц</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>⚽ {{ system_name }}</h2>
+            <button class="sidebar-toggle" aria-label="Свернуть меню">☰</button>
+        </div>
+        <nav>
+            <a href="{{ url_for('dashboard') }}" data-tooltip="Главная">📊 <span>Главная</span></a>
+            <a href="{{ url_for('students') }}" data-tooltip="Ученики">👥 <span>Ученики</span></a>
+            <a href="{{ url_for('groups_page') }}" data-tooltip="Группы">👨‍👩‍👦 <span>Группы</span></a>
+            <a href="{{ url_for('tariffs_page') }}" data-tooltip="Тарифы">💳 <span>Тарифы</span></a>
+            <a href="{{ url_for('finances_page') }}" data-tooltip="Финансы">💰 <span>Финансы</span></a>
+            <a href="{{ url_for('attendance_page') }}" data-tooltip="Посещаемость">📋 <span>Посещаемость</span></a>
+            <a href="{{ url_for('camera_page') }}" class="active" data-tooltip="Камера">📷 <span>Камера</span></a>
+            <a href="{{ url_for('rewards_page') }}" data-tooltip="Вознаграждения">🏆 <span>Вознаграждения</span></a>
+            <a href="{{ url_for('rating_page') }}" data-tooltip="Рейтинг учеников">⭐ <span>Рейтинг учеников</span></a>
+            <a href="{{ url_for('club_settings_page') }}" data-tooltip="Настройки">⚙️ <span>Настройки</span></a>
+            <a href="{{ url_for('logout') }}" data-tooltip="Выход">🚪 <span>Выход</span></a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <h1>📷 Распознавание лиц</h1>
+        
+        <div class="camera-container">
+            <div class="camera-box">
+                <video id="camera" autoplay playsinline></video>
+                <canvas id="canvas" style="display:none;"></canvas>
+                
+                <div class="camera-controls">
+                    <button id="startCamera" class="btn-success">🎥 Запустить автосканирование</button>
+                </div>
+                <div style="margin-top: 10px; text-align: center; color: #7f8c8d; font-size: 0.9rem;">
+                    После запуска камера автоматически распознаёт лица каждые 2 секунды
+                </div>
+            </div>
+
+            <!-- Перенесено: Сегодня на занятии рядом с камерой -->
+            <div class="today-list">
+                <div class="today-header">
+                    <h2>Сегодня на занятии</h2>
+                    <span class="today-counter" id="todayCounter">0 человек</span>
+                </div>
+                <div class="today-columns">
+                    <span>Фото</span>
+                    <span>Время</span>
+                    <span>Ученик</span>
+                    <span>Группа</span>
+                    <span>Остаток занятий</span>
+                </div>
+                <div id="todayList" class="today-items">
+                    <div class="info-text">Загрузка...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Результат распознавания размещён ниже -->
+        <div class="recognition-panel">
+            <h3>Результат распознавания</h3>
+            <div id="recognitionResult">
+                <p class="info-text">Запустите камеру для автоматического сканирования</p>
+            </div>
+            
+            <div id="studentInfo" style="display:none;">
+                <img id="studentPhoto" src="" alt="Фото ученика">
+                <h2 id="studentName"></h2>
+                <p>Баланс: <span id="studentBalance" class="balance-badge"></span> занятий</p>
+                <button id="checkinBtn" class="btn-success btn-large">✓ Отметить приход</button>
+            </div>
+            
+            <div id="lowBalanceAlert" style="display:none;" class="alert-danger">
+                <h3>⚠️ Недостаточно занятий!</h3>
+                <p>У ученика закончился баланс</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/camera.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+</body>
+</html>

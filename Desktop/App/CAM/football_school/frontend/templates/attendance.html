@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Посещаемость</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>⚽ {{ system_name }}</h2>
+            <button class="sidebar-toggle" aria-label="Свернуть меню">☰</button>
+        </div>
+        <nav>
+            <a href="{{ url_for('dashboard') }}" data-tooltip="Главная">📊 <span>Главная</span></a>
+            <a href="{{ url_for('students') }}" data-tooltip="Ученики">👥 <span>Ученики</span></a>
+            <a href="{{ url_for('groups_page') }}" data-tooltip="Группы">👨‍👩‍👦 <span>Группы</span></a>
+            <a href="{{ url_for('tariffs_page') }}" data-tooltip="Тарифы">💳 <span>Тарифы</span></a>
+            <a href="{{ url_for('finances_page') }}" data-tooltip="Финансы">💰 <span>Финансы</span></a>
+            <a href="{{ url_for('attendance_page') }}" class="active" data-tooltip="Посещаемость">📋 <span>Посещаемость</span></a>
+            <a href="{{ url_for('camera_page') }}" data-tooltip="Камера">📷 <span>Камера</span></a>
+            <a href="{{ url_for('rewards_page') }}" data-tooltip="Вознаграждения">🏆 <span>Вознаграждения</span></a>
+            <a href="{{ url_for('rating_page') }}" data-tooltip="Рейтинг учеников">⭐ <span>Рейтинг учеников</span></a>
+            <a href="{{ url_for('club_settings_page') }}" data-tooltip="Настройки">⚙️ <span>Настройки</span></a>
+            <a href="{{ url_for('logout') }}" data-tooltip="Выход">🚪 <span>Выход</span></a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <div class="page-header">
+            <h1>📋 Посещаемость</h1>
+            <button id="attendanceFilterToggleBtn" class="btn-secondary" style="display: flex; align-items: center; gap: 8px;">
+                <span>🔍</span>
+                <span id="attendanceFilterToggleText">Фильтр</span>
+            </button>
+        </div>
+        
+        <!-- Фильтры для посещаемости -->
+        <div id="attendanceFilterPanel" class="filter-panel" style="display: none;">
+            <div class="filter-panel-content">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>📅 Год</label>
+                        <select id="filterYear" class="form-input-modern">
+                            <option value="">Все годы</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>📆 Месяц</label>
+                        <select id="filterMonth" class="form-input-modern">
+                            <option value="">Все месяцы</option>
+                            <option value="1">Январь</option>
+                            <option value="2">Февраль</option>
+                            <option value="3">Март</option>
+                            <option value="4">Апрель</option>
+                            <option value="5">Май</option>
+                            <option value="6">Июнь</option>
+                            <option value="7">Июль</option>
+                            <option value="8">Август</option>
+                            <option value="9">Сентябрь</option>
+                            <option value="10">Октябрь</option>
+                            <option value="11">Ноябрь</option>
+                            <option value="12">Декабрь</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>👥 Группа</label>
+                        <select id="filterGroup" class="form-input-modern">
+                            <option value="">Все группы</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>🧑 Ученик</label>
+                        <div style="position: relative;">
+                            <input type="text" id="filterStudentSearch" placeholder="Поиск ученика..." class="form-input-modern">
+                            <div id="studentDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 2px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 8px 24px rgba(0,0,0,0.15);">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button type="button" onclick="resetFilters()" class="btn-secondary">🔄 Сбросить</button>
+                    <button type="button" onclick="applyFilters()" class="btn-primary">✓ Применить</button>
+                </div>
+            </div>
+        </div>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Время прихода</th>
+                    <th>Ученик</th>
+                    <th>Группа</th>
+                    <th>Остаток занятий</th>
+                </tr>
+            </thead>
+            <tbody id="attendanceTableBody">
+                <tr><td colspan="3" class="info-text">Загрузка...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+</body>
+</html>

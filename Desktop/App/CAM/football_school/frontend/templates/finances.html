@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Финансы</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            color: #7f8c8d;
+            transition: all 0.3s;
+        }
+        
+        .tab:hover {
+            color: #2c3e50;
+            background: #f8f9fa;
+        }
+        
+        .tab.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid;
+        }
+        
+        .stat-card.income { border-left-color: #27ae60; }
+        .stat-card.expense { border-left-color: #e74c3c; }
+        .stat-card.balance { border-left-color: #3498db; }
+        .stat-card.debt { border-left-color: #f39c12; }
+        
+        .stat-card h3 {
+            margin: 0 0 8px 0;
+            font-size: 11px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            line-height: 1.2;
+        }
+        
+        .stat-card .value {
+            font-size: 22px;
+            font-weight: bold;
+            margin: 0;
+            line-height: 1.2;
+        }
+        
+        .stat-card.income .value { color: #27ae60; }
+        .stat-card.expense .value { color: #e74c3c; }
+        .stat-card.balance .value { color: #3498db; }
+        .stat-card.debt .value { color: #f39c12; }
+        
+        .debt-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #fff3cd;
+            color: #856404;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>⚽ {{ system_name }}</h2>
+            <button class="sidebar-toggle" aria-label="Свернуть меню">☰</button>
+        </div>
+        <nav>
+            <a href="{{ url_for('dashboard') }}" data-tooltip="Главная">📊 <span>Главная</span></a>
+            <a href="{{ url_for('students') }}" data-tooltip="Ученики">👥 <span>Ученики</span></a>
+            <a href="{{ url_for('groups_page') }}" data-tooltip="Группы">👨‍👩‍👦 <span>Группы</span></a>
+            <a href="{{ url_for('tariffs_page') }}" data-tooltip="Тарифы">💳 <span>Тарифы</span></a>
+            <a href="{{ url_for('finances_page') }}" class="active" data-tooltip="Финансы">💰 <span>Финансы</span></a>
+            <a href="{{ url_for('attendance_page') }}" data-tooltip="Посещаемость">📋 <span>Посещаемость</span></a>
+            <a href="{{ url_for('camera_page') }}" data-tooltip="Камера">📷 <span>Камера</span></a>
+            <a href="{{ url_for('rewards_page') }}" data-tooltip="Вознаграждения">🏆 <span>Вознаграждения</span></a>
+            <a href="{{ url_for('rating_page') }}" data-tooltip="Рейтинг учеников">⭐ <span>Рейтинг учеников</span></a>
+            <a href="{{ url_for('club_settings_page') }}" data-tooltip="Настройки">⚙️ <span>Настройки</span></a>
+            <a href="{{ url_for('logout') }}" data-tooltip="Выход">🚪 <span>Выход</span></a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <div class="page-header">
+            <h1>💰 Финансы</h1>
+        </div>
+        
+        <!-- Вкладки -->
+        <div class="tabs">
+            <button class="tab active" data-tab="income">📈 Приход</button>
+            <button class="tab" data-tab="debtors">⚠️ Должники</button>
+            <button class="tab" data-tab="expenses">📉 Расход</button>
+            <button class="tab" data-tab="analytics">📊 Аналитика</button>
+        </div>
+        
+        <!-- Приход -->
+        <div id="income-tab" class="tab-content active">
+            <div class="page-header" style="margin-bottom: 20px;">
+                <h2 style="margin: 0;">Поступления</h2>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <button id="incomeFilterToggleBtn" class="btn-secondary" style="display: flex; align-items: center; gap: 8px;">
+                        <span>🔍</span>
+                        <span id="incomeFilterToggleText">Фильтр</span>
+                    </button>
+                    <button id="addIncomeBtn" class="btn-primary">➕ Добавить</button>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card income">
+                    <h3>Сегодня</h3>
+                    <p class="value" id="income-today">0 сум</p>
+                </div>
+                <div class="stat-card income">
+                    <h3>Этот месяц</h3>
+                    <p class="value" id="income-month">0 сум</p>
+                </div>
+                <div class="stat-card income">
+                    <h3>Всего</h3>
+                    <p class="value" id="income-total">0 сум</p>
+                </div>
+            </div>
+            
+            <!-- Фильтры для прихода -->
+            <div id="incomeFilterPanel" class="filter-panel" style="display: none;">
+                <div class="filter-panel-content">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>📅 От даты</label>
+                            <input type="date" id="income-date-from" class="form-input-modern">
+                        </div>
+                        <div class="filter-group">
+                            <label>📅 До даты</label>
+                            <input type="date" id="income-date-to" class="form-input-modern">
+                        </div>
+                        <div class="filter-group">
+                            <label>👥 Группа</label>
+                            <select id="income-group-filter" class="form-input-modern">
+                                <option value="">Все группы</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>🧑 Ученик</label>
+                            <input type="text" id="income-student-filter" list="income-students-list" placeholder="Сначала выберите группу..." class="form-input-modern" disabled>
+                            <datalist id="income-students-list"></datalist>
+                        </div>
+                    </div>
+                    <div class="filter-actions">
+                        <button type="button" onclick="resetIncomeFilters()" class="btn-secondary">🔄 Сбросить</button>
+                        <button type="button" onclick="filterIncome()" class="btn-primary">✓ Применить</button>
+                    </div>
+                </div>
+            </div>
+            
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Ученик</th>
+                        <th>Группа</th>
+                        <th>Тариф</th>
+                        <th>Оплачено</th>
+                        <th>Долг</th>
+                        <th>Статус</th>
+                        <th>Примечание</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="income-table-body">
+                    <!-- Заполнится через JS -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Должники -->
+        <div id="debtors-tab" class="tab-content">
+            <h2>Список должников</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card debt">
+                    <h3>Общий долг</h3>
+                    <p class="value" id="total-debt">0 сум</p>
+                </div>
+                <div class="stat-card debt">
+                    <h3>Количество должников</h3>
+                    <p class="value" id="debtors-count">0</p>
+                </div>
+            </div>
+            
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Ученик</th>
+                        <th>Телефон</th>
+                        <th>Тариф</th>
+                        <th>Месяц</th>
+                        <th>Оплачено</th>
+                        <th>Долг</th>
+                    </tr>
+                </thead>
+                <tbody id="debtors-table-body">
+                    <!-- Заполнится через JS -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Расход -->
+        <div id="expenses-tab" class="tab-content">
+            <div class="page-header" style="margin-bottom: 20px;">
+                <h2 style="margin: 0;">Расходы</h2>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <button id="expenseFilterToggleBtn" class="btn-secondary" style="display: flex; align-items: center; gap: 8px;">
+                        <span>🔍</span>
+                        <span id="expenseFilterToggleText">Фильтр</span>
+                    </button>
+                    <button id="addExpenseBtn" class="btn-primary">➕ Добавить расход</button>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card expense">
+                    <h3>Сегодня</h3>
+                    <p class="value" id="expense-today">0 сум</p>
+                </div>
+                <div class="stat-card expense">
+                    <h3>Этот месяц</h3>
+                    <p class="value" id="expense-month">0 сум</p>
+                </div>
+                <div class="stat-card expense">
+                    <h3>Всего</h3>
+                    <p class="value" id="expense-total">0 сум</p>
+                </div>
+            </div>
+            
+            <!-- Фильтры для расходов -->
+            <div id="expenseFilterPanel" class="filter-panel" style="display: none;">
+                <div class="filter-panel-content">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>📅 От даты</label>
+                            <input type="date" id="expense-date-from" class="form-input-modern">
+                        </div>
+                        <div class="filter-group">
+                            <label>📅 До даты</label>
+                            <input type="date" id="expense-date-to" class="form-input-modern">
+                        </div>
+                        <div class="filter-group">
+                            <label>📂 Категория</label>
+                            <select id="expense-category-filter" class="form-input-modern">
+                                <option value="">Все категории</option>
+                                <option value="Зарплата">Зарплата</option>
+                                <option value="Аренда">Аренда</option>
+                                <option value="Оборудование">Оборудование</option>
+                                <option value="Коммунальные">Коммунальные</option>
+                                <option value="Другое">Другое</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="filter-actions">
+                        <button type="button" onclick="resetExpenseFilters()" class="btn-secondary">🔄 Сбросить</button>
+                        <button type="button" onclick="filterExpenses()" class="btn-primary">✓ Применить</button>
+                    </div>
+                </div>
+            </div>
+            
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Категория</th>
+                        <th>Сумма</th>
+                        <th>Описание</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="expense-table-body">
+                    <!-- Заполнится через JS -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Аналитика -->
+        <div id="analytics-tab" class="tab-content">
+            <h2>Аналитика по месяцам</h2>
+            
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Месяц</th>
+                        <th>Приход</th>
+                        <th>Расход</th>
+                        <th>Остаток</th>
+                    </tr>
+                </thead>
+                <tbody id="analytics-table-body">
+                    <!-- Заполнится через JS -->
+                </tbody>
+            </table>
+            
+            <div class="chart-container">
+                <canvas id="financeChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Добавить расход -->
+    <div id="addExpenseModal" class="modal">
+        <div class="modal-content simple-modal" style="max-width: 600px;">
+            <span class="close">&times;</span>
+            <h2>Добавить расход</h2>
+            
+            <form id="addExpenseForm">
+                <div class="form-group">
+                    <label>Категория *</label>
+                    <select name="category" required>
+                        <option value="Аренда">Аренда</option>
+                        <option value="Зарплата">Зарплата</option>
+                        <option value="Оборудование">Оборудование</option>
+                        <option value="Коммунальные">Коммунальные услуги</option>
+                        <option value="Прочее">Прочее</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Сумма (сум) *</label>
+                    <input type="number" name="amount" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Описание</label>
+                    <textarea name="description" rows="3"></textarea>
+                </div>
+                
+                <button type="submit" class="btn-primary btn-large">➕ Добавить</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Редактировать расход -->
+    <div id="editExpenseModal" class="modal">
+        <div class="modal-content simple-modal" style="max-width: 600px;">
+            <span class="close">&times;</span>
+            <h2>Редактировать расход</h2>
+            
+            <form id="editExpenseForm">
+                <input type="hidden" id="edit-expense-id">
+                
+                <div class="form-group">
+                    <label>Категория *</label>
+                    <select id="edit-category" name="category" required>
+                        <option value="Аренда">Аренда</option>
+                        <option value="Зарплата">Зарплата</option>
+                        <option value="Оборудование">Оборудование</option>
+                        <option value="Коммунальные">Коммунальные услуги</option>
+                        <option value="Прочее">Прочее</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Сумма (сум) *</label>
+                    <input type="number" id="edit-amount" name="amount" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Описание</label>
+                    <textarea id="edit-description" name="description" rows="3"></textarea>
+                </div>
+                
+                <button type="submit" class="btn-primary btn-large">💾 Сохранить</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Добавить приход -->
+    <div id="addIncomeModal" class="modal">
+        <div class="modal-content simple-modal" style="max-width: 650px;">
+            <span class="close">&times;</span>
+            <h2>Добавить приход</h2>
+            
+            <form id="addIncomeForm">
+                <div class="form-group">
+                    <label>Группа *</label>
+                    <select id="add-income-group" name="group_id" required>
+                        <option value="">Выберите группу</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="student-select-group" style="display: none;">
+                    <label>Ученик *</label>
+                    <div style="display: flex; gap: 15px; align-items: center;">
+                        <div id="student-photo-container" style="width: 60px; height: 60px; border-radius: 50%; overflow: hidden; border: 2px solid #e2e8f0; background: #f8f9fa; display: none; flex-shrink: 0;">
+                            <img id="student-photo-img" src="" alt="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                            <div id="student-photo-placeholder" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 24px;">👤</div>
+                        </div>
+                        <select id="add-income-student" name="student_id" required style="flex: 1;">
+                            <option value="">Выберите ученика</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group" id="year-month-select-group" style="display: none;">
+                    <label>Год и Месяц *</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <select id="add-income-year" name="year" required>
+                            <option value="">Выберите год</option>
+                        </select>
+                        <select id="add-income-month" name="month" required>
+                            <option value="">Выберите месяц</option>
+                        </select>
+                    </div>
+                    <small id="month-debt-info" style="color: #f39c12; display: none; margin-top: 5px; font-weight: 600;"></small>
+                </div>
+                
+                <div class="form-group" id="date-select-group" style="display: none;">
+                    <label>Дата оплаты *</label>
+                    <input type="date" id="add-income-date" name="payment_date" required>
+                    <small style="color: #7f8c8d; display: block; margin-top: 5px;">Можно выбрать дату от 14 дней назад до сегодня</small>
+                </div>
+                
+                <div class="form-group" id="amount-input-group" style="display: none;">
+                    <label>Сумма оплаты (сум) *</label>
+                    <input type="number" id="add-income-amount" name="amount" required min="0" step="1000" placeholder="Введите сумму">
+                    <small id="add-income-max-amount" style="color: #7f8c8d; display: none; margin-top: 5px;"></small>
+                </div>
+                
+                <div class="form-group" id="notes-input-group" style="display: none;">
+                    <label>Примечание</label>
+                    <textarea id="add-income-notes" name="notes" rows="3" placeholder="Комментарий к оплате"></textarea>
+                </div>
+                
+                <button type="submit" class="btn-primary btn-large" id="submit-payment-btn" style="display: none;">💰 Добавить оплату</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Редактировать платеж -->
+    <div id="editIncomeModal" class="modal">
+        <div class="modal-content simple-modal" style="max-width: 600px;">
+            <span class="close">&times;</span>
+            <h2>Редактировать платеж</h2>
+            
+            <form id="editIncomeForm">
+                <input type="hidden" id="edit-payment-id">
+                
+                <div class="form-group">
+                    <label>Ученик *</label>
+                    <select id="edit-student-id" name="student_id" required>
+                        <option value="">Выберите ученика</option>
+                        {% for student in students %}
+                        <option value="{{ student.id }}">{{ student.name }} ({{ student.phone }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Сумма (сум) *</label>
+                    <input type="number" id="edit-payment-amount" name="amount" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Примечание</label>
+                    <textarea id="edit-payment-notes" name="notes" rows="3"></textarea>
+                </div>
+                
+                <button type="submit" class="btn-primary btn-large">💾 Сохранить</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/finances.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+</body>
+</html>

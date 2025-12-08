@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель управления</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            color: #7f8c8d;
+            transition: all 0.3s;
+        }
+        
+        .tab:hover {
+            color: #2c3e50;
+            background: #f8f9fa;
+        }
+        
+        .tab.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>⚽ {{ system_name }}</h2>
+            <button class="sidebar-toggle" aria-label="Свернуть меню">☰</button>
+        </div>
+        <nav>
+            <a href="{{ url_for('dashboard') }}" class="active" data-tooltip="Главная">📊 <span>Главная</span></a>
+            <a href="{{ url_for('students') }}" data-tooltip="Ученики">👥 <span>Ученики</span></a>
+            <a href="{{ url_for('groups_page') }}" data-tooltip="Группы">👨‍👩‍👦 <span>Группы</span></a>
+            <a href="{{ url_for('tariffs_page') }}" data-tooltip="Тарифы">💳 <span>Тарифы</span></a>
+            <a href="{{ url_for('finances_page') }}" data-tooltip="Финансы">💰 <span>Финансы</span></a>
+            <a href="{{ url_for('attendance_page') }}" data-tooltip="Посещаемость">📋 <span>Посещаемость</span></a>
+            <a href="{{ url_for('camera_page') }}" data-tooltip="Камера">📷 <span>Камера</span></a>
+            <a href="{{ url_for('rewards_page') }}" data-tooltip="Вознаграждения">🏆 <span>Вознаграждения</span></a>
+            <a href="{{ url_for('rating_page') }}" data-tooltip="Рейтинг учеников">⭐ <span>Рейтинг учеников</span></a>
+            <a href="{{ url_for('club_settings_page') }}" data-tooltip="Настройки">⚙️ <span>Настройки</span></a>
+            <a href="{{ url_for('logout') }}" data-tooltip="Выход">🚪 <span>Выход</span></a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <h1>Панель управления</h1>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Всего учеников</h3>
+                <p class="stat-number">{{ total_students }}</p>
+            </div>
+            
+            <div class="stat-card warning">
+                <h3>Мало занятий</h3>
+                <p class="stat-number">{{ students_low_balance }}</p>
+            </div>
+            
+            <div class="stat-card">
+                <h3>Сегодня на занятии</h3>
+                <p class="stat-number">{{ today_attendance }}</p>
+            </div>
+            
+            <div class="stat-card success">
+                <h3>Доход (месяц)</h3>
+                <p class="stat-number">{{ "%.0f"|format(month_income) }} сум</p>
+            </div>
+            
+            <div class="stat-card danger">
+                <h3>Расходы (месяц)</h3>
+                <p class="stat-number">{{ "%.0f"|format(month_expenses) }} сум</p>
+            </div>
+            
+            <div class="stat-card {% if profit >= 0 %}success{% else %}danger{% endif %}">
+                <h3>Прибыль (месяц)</h3>
+                <p class="stat-number">{{ "%.0f"|format(profit) }} сум</p>
+            </div>
+        </div>
+
+        <!-- Вкладки -->
+        <div class="tabs" style="margin-bottom: 30px;">
+            <button class="tab active" data-tab="finances">💰 Анализ по финансам</button>
+            <button class="tab" data-tab="attendance">📋 Анализ посещаемости</button>
+            <button class="tab" data-tab="rating">⭐ Рейтинг учеников</button>
+        </div>
+
+        <!-- Вкладка: Анализ по финансам -->
+        <div id="finances-tab" class="tab-content active">
+            <div class="form-block" style="margin-top: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3>📈 Финансы по месяцам</h3>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <label for="yearFilter" style="font-weight: 600; color: #475569;">Год:</label>
+                        <select id="yearFilter" style="padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.95rem; background: white; cursor: pointer;">
+                            <!-- Years will be populated by JavaScript -->
+                        </select>
+                    </div>
+                </div>
+                <div class="month-grid">
+                    {% set month_names = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'] %}
+                    {% for i in range(12) %}
+                    <div class="month-cell">
+                        <div class="month-title">{{ month_names[i] }}</div>
+                        <div class="bars" data-month-index="{{ i }}">
+                            <div class="bar income" title="Приход"><span class="bar-value"></span></div>
+                            <div class="bar expense" title="Расход"><span class="bar-value"></span></div>
+                            <div class="bar balance" title="Остаток"><span class="bar-value"></span></div>
+                        </div>
+                        <div class="legend">
+                            <span class="legend-item income">Приход</span>
+                            <span class="legend-item expense">Расход</span>
+                            <span class="legend-item balance">Остаток</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка: Анализ посещаемости -->
+        <div id="attendance-tab" class="tab-content">
+            <div class="form-block" style="margin-top: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3>📊 Аналитика посещаемости</h3>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <label for="attendanceYearFilter" style="font-weight: 600; color: #475569;">Год:</label>
+                        <select id="attendanceYearFilter" style="padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.95rem; background: white; cursor: pointer;">
+                            <!-- Years will be populated by JavaScript -->
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- График по месяцам -->
+                <div style="background: white; padding: 20px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h4 style="margin-bottom: 15px; color: #1a202c;">Посещаемость по месяцам</h4>
+                    <canvas id="attendanceMonthlyChart" width="400" height="200"></canvas>
+                </div>
+
+                <!-- График по дням недели -->
+                <div style="background: white; padding: 20px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h4 style="margin-bottom: 15px; color: #1a202c;">Посещаемость по дням недели</h4>
+                    <canvas id="attendanceWeekdayChart" width="400" height="200"></canvas>
+                </div>
+
+                <!-- График по группам -->
+                <div style="background: white; padding: 20px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h4 style="margin-bottom: 15px; color: #1a202c;">Посещаемость по группам</h4>
+                    <canvas id="attendanceGroupChart" width="400" height="200"></canvas>
+                </div>
+
+                <!-- Статистика опозданий -->
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h4 style="margin-bottom: 15px; color: #1a202c;">Статистика опозданий</h4>
+                    <div id="lateStats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <!-- Заполнится через JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка: Рейтинг учеников -->
+        <div id="rating-tab" class="tab-content">
+            <div class="form-block" style="margin-top: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3>⭐ История победителей (1 место)</h3>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <label for="ratingYearFilter" style="font-weight: 600; color: #475569;">Год:</label>
+                        <select id="ratingYearFilter" style="padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.95rem; background: white; cursor: pointer;">
+                            <!-- Years will be populated by JavaScript -->
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="winnersHistoryContent">
+                    <!-- Заполнится через JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    // Переключение вкладок
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabName = tab.getAttribute('data-tab');
+            
+            // Убрать активный класс со всех вкладок
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+            
+            // Активировать выбранную вкладку
+            tab.classList.add('active');
+            const tabElement = document.getElementById(`${tabName}-tab`);
+            if (tabElement) {
+                tabElement.classList.add('active');
+                
+                // Перерисовать графики при переключении на вкладку посещаемости
+                if (tabName === 'attendance') {
+                    setTimeout(() => {
+                        const year = parseInt(attendanceYearFilter.value);
+                        loadAttendanceAnalytics(year);
+                    }, 100);
+                }
+                
+                // Загрузить историю победителей при переключении на вкладку рейтинга
+                if (tabName === 'rating') {
+                    setTimeout(() => {
+                        const year = parseInt(ratingYearFilter.value);
+                        loadWinnersHistory(year);
+                    }, 100);
+                }
+            }
+        });
+    });
+    
+    // Перерисовка графиков при изменении размера окна
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            const attendanceTab = document.getElementById('attendance-tab');
+            if (attendanceTab && attendanceTab.classList.contains('active')) {
+                const year = parseInt(attendanceYearFilter.value);
+                loadAttendanceAnalytics(year);
+            }
+        }, 250);
+    });
+
+    // Populate year filter
+    const currentYear = new Date().getFullYear();
+    const yearFilter = document.getElementById('yearFilter');
+    const attendanceYearFilter = document.getElementById('attendanceYearFilter');
+    const ratingYearFilter = document.getElementById('ratingYearFilter');
+    
+    for (let year = currentYear; year >= currentYear - 5; year--) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        if (year === currentYear) option.selected = true;
+        yearFilter.appendChild(option);
+        
+        const option2 = document.createElement('option');
+        option2.value = year;
+        option2.textContent = year;
+        if (year === currentYear) option2.selected = true;
+        attendanceYearFilter.appendChild(option2);
+        
+        const option3 = document.createElement('option');
+        option3.value = year;
+        option3.textContent = year;
+        if (year === currentYear) option3.selected = true;
+        ratingYearFilter.appendChild(option3);
+    }
+
+    // Fetch and render monthly finance data
+    async function loadFinances(year) {
+        try {
+            const res = await fetch(`/api/finances/monthly?year=${year}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!data || !Array.isArray(data.months)) return;
+            const months = data.months;
+            const maxVal = Math.max(1, ...months.flatMap(m => [m.income||0, m.expense||0, m.balance||0]));
+            
+            // Render each month
+            document.querySelectorAll('.bars').forEach((barsEl, idx) => {
+                const m = months[idx] || { income: 0, expense: 0, balance: 0 };
+                const items = [
+                    { cls: '.income', val: m.income || 0 },
+                    { cls: '.expense', val: m.expense || 0 },
+                    { cls: '.balance', val: m.balance || 0 }
+                ];
+                items.forEach(item => {
+                    const bar = barsEl.querySelector(item.cls);
+                    if (bar) {
+                        const pct = Math.min(100, Math.round((item.val / maxVal) * 100));
+                        bar.style.height = pct + '%';
+                        const valEl = bar.querySelector('.bar-value');
+                        if (valEl) {
+                            valEl.textContent = item.val ? new Intl.NumberFormat('ru-RU').format(item.val) : '';
+                        }
+                    }
+                });
+            });
+        } catch (e) {
+            console.warn('Не удалось загрузить финансы по месяцам', e);
+        }
+    }
+
+    // Load initial data
+    loadFinances(currentYear);
+
+    // Reload on year change
+    yearFilter.addEventListener('change', (e) => {
+        loadFinances(parseInt(e.target.value));
+    });
+
+    // Загрузка данных посещаемости
+    async function loadAttendanceAnalytics(year) {
+        try {
+            const res = await fetch(`/api/attendance/analytics?year=${year}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            
+            // График по месяцам
+            drawMonthlyChart(data.monthly || []);
+            
+            // График по дням недели
+            drawWeekdayChart(data.weekdays || []);
+            
+            // График по группам
+            drawGroupChart(data.groups || []);
+            
+            // Статистика опозданий
+            renderLateStats(data.late_stats || {});
+        } catch (e) {
+            console.warn('Не удалось загрузить аналитику посещаемости', e);
+        }
+    }
+
+    // График по месяцам
+    function drawMonthlyChart(data) {
+        const canvas = document.getElementById('attendanceMonthlyChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        
+        // Установить размеры canvas
+        const container = canvas.parentElement;
+        canvas.width = container.offsetWidth;
+        canvas.height = 300;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        if (!data || data.length === 0) {
+            ctx.fillStyle = '#95a5a6';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Нет данных', canvas.width / 2, canvas.height / 2);
+            return;
+        }
+        
+        const padding = { top: 40, right: 20, bottom: 50, left: 50 };
+        const chartWidth = canvas.width - padding.left - padding.right;
+        const chartHeight = canvas.height - padding.top - padding.bottom;
+        const maxValue = Math.max(1, ...data.map(d => d.count || 0));
+        const barWidth = chartWidth / data.length * 0.7;
+        const barSpacing = chartWidth / data.length;
+        
+        // Оси
+        ctx.strokeStyle = '#e0e0e0';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, padding.top);
+        ctx.lineTo(padding.left, padding.top + chartHeight);
+        ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
+        ctx.stroke();
+        
+        data.forEach((item, i) => {
+            const x = padding.left + i * barSpacing + (barSpacing - barWidth) / 2;
+            const barHeight = (item.count / maxValue) * chartHeight;
+            
+            // Столбец
+            ctx.fillStyle = '#3498db';
+            ctx.fillRect(x, padding.top + chartHeight - barHeight, barWidth, barHeight);
+            
+            // Подпись месяца
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = '11px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(item.month_name, x + barWidth / 2, canvas.height - 15);
+            
+            // Значение
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText(item.count || 0, x + barWidth / 2, padding.top + chartHeight - barHeight - 8);
+        });
+    }
+
+    // График по дням недели
+    function drawWeekdayChart(data) {
+        const canvas = document.getElementById('attendanceWeekdayChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        
+        const container = canvas.parentElement;
+        canvas.width = container.offsetWidth;
+        canvas.height = 300;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        if (!data || data.length === 0) {
+            ctx.fillStyle = '#95a5a6';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Нет данных', canvas.width / 2, canvas.height / 2);
+            return;
+        }
+        
+        const padding = { top: 40, right: 20, bottom: 50, left: 50 };
+        const chartWidth = canvas.width - padding.left - padding.right;
+        const chartHeight = canvas.height - padding.top - padding.bottom;
+        const maxValue = Math.max(1, ...data.map(d => d.count || 0));
+        const barWidth = chartWidth / data.length * 0.7;
+        const barSpacing = chartWidth / data.length;
+        const dayLabels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+        
+        // Оси
+        ctx.strokeStyle = '#e0e0e0';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, padding.top);
+        ctx.lineTo(padding.left, padding.top + chartHeight);
+        ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
+        ctx.stroke();
+        
+        data.forEach((item, i) => {
+            const x = padding.left + i * barSpacing + (barSpacing - barWidth) / 2;
+            const barHeight = (item.count / maxValue) * chartHeight;
+            
+            ctx.fillStyle = '#27ae60';
+            ctx.fillRect(x, padding.top + chartHeight - barHeight, barWidth, barHeight);
+            
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = '11px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(dayLabels[item.weekday - 1] || item.weekday, x + barWidth / 2, canvas.height - 15);
+            
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText(item.count || 0, x + barWidth / 2, padding.top + chartHeight - barHeight - 8);
+        });
+    }
+
+    // График по группам
+    function drawGroupChart(data) {
+        const canvas = document.getElementById('attendanceGroupChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        
+        const container = canvas.parentElement;
+        canvas.width = container.offsetWidth;
+        canvas.height = 300;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        if (!data || data.length === 0) {
+            ctx.fillStyle = '#95a5a6';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Нет данных', canvas.width / 2, canvas.height / 2);
+            return;
+        }
+        
+        const padding = { top: 40, right: 20, bottom: 50, left: 50 };
+        const chartWidth = canvas.width - padding.left - padding.right;
+        const chartHeight = canvas.height - padding.top - padding.bottom;
+        const maxValue = Math.max(1, ...data.map(d => d.count || 0));
+        const barWidth = chartWidth / Math.max(data.length, 1) * 0.7;
+        const barSpacing = chartWidth / Math.max(data.length, 1);
+        
+        // Оси
+        ctx.strokeStyle = '#e0e0e0';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, padding.top);
+        ctx.lineTo(padding.left, padding.top + chartHeight);
+        ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
+        ctx.stroke();
+        
+        data.forEach((item, i) => {
+            const x = padding.left + i * barSpacing + (barSpacing - barWidth) / 2;
+            const barHeight = (item.count / maxValue) * chartHeight;
+            
+            ctx.fillStyle = '#9b59b6';
+            ctx.fillRect(x, padding.top + chartHeight - barHeight, barWidth, barHeight);
+            
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            const groupName = (item.group_name || 'Без группы');
+            // Разбить длинное название на две строки
+            if (groupName.length > 12) {
+                const mid = Math.floor(groupName.length / 2);
+                const space = groupName.lastIndexOf(' ', mid);
+                const line1 = groupName.substring(0, space > 0 ? space : mid);
+                const line2 = groupName.substring(space > 0 ? space + 1 : mid);
+                ctx.fillText(line1, x + barWidth / 2, canvas.height - 25);
+                ctx.fillText(line2, x + barWidth / 2, canvas.height - 10);
+            } else {
+                ctx.fillText(groupName, x + barWidth / 2, canvas.height - 15);
+            }
+            
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText(item.count || 0, x + barWidth / 2, padding.top + chartHeight - barHeight - 8);
+        });
+    }
+
+    // Статистика опозданий
+    function renderLateStats(stats) {
+        const container = document.getElementById('lateStats');
+        if (!container) return;
+        
+        container.innerHTML = `
+            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #f39c12;">
+                <div style="font-size: 12px; color: #856404; margin-bottom: 5px;">Всего опозданий</div>
+                <div style="font-size: 24px; font-weight: bold; color: #856404;">${stats.total_late || 0}</div>
+            </div>
+            <div style="background: #d1ecf1; padding: 15px; border-radius: 8px; border-left: 4px solid #17a2b8;">
+                <div style="font-size: 12px; color: #0c5460; margin-bottom: 5px;">% опозданий</div>
+                <div style="font-size: 24px; font-weight: bold; color: #0c5460;">${stats.late_percentage || 0}%</div>
+            </div>
+            <div style="background: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
+                <div style="font-size: 12px; color: #155724; margin-bottom: 5px;">Среднее опоздание</div>
+                <div style="font-size: 24px; font-weight: bold; color: #155724;">${stats.avg_late_minutes || 0} мин</div>
+            </div>
+        `;
+    }
+
+    // Load initial attendance data (с задержкой для инициализации canvas)
+    setTimeout(() => {
+        const attendanceTab = document.getElementById('attendance-tab');
+        if (attendanceTab && attendanceTab.classList.contains('active')) {
+            loadAttendanceAnalytics(currentYear);
+        }
+    }, 500);
+
+    // Reload on year change
+    attendanceYearFilter.addEventListener('change', (e) => {
+        loadAttendanceAnalytics(parseInt(e.target.value));
+    });
+
+    // Загрузка истории победителей
+    async function loadWinnersHistory(year) {
+        try {
+            const res = await fetch(`/api/rating/winners-history?year=${year}`);
+            if (!res.ok) {
+                document.getElementById('winnersHistoryContent').innerHTML = '<p style="text-align: center; padding: 40px; color: #95a5a6;">Ошибка загрузки данных</p>';
+                return;
+            }
+            const data = await res.json();
+            
+            if (!data.groups || data.groups.length === 0) {
+                document.getElementById('winnersHistoryContent').innerHTML = '<p style="text-align: center; padding: 40px; color: #95a5a6;">Нет данных для отображения</p>';
+                return;
+            }
+            
+            renderWinnersHistory(data.groups, data.year);
+        } catch (e) {
+            console.warn('Не удалось загрузить историю победителей', e);
+            document.getElementById('winnersHistoryContent').innerHTML = '<p style="text-align: center; padding: 40px; color: #e74c3c;">Ошибка загрузки данных</p>';
+        }
+    }
+
+    // Отрисовка истории победителей
+    function renderWinnersHistory(groups, year) {
+        const container = document.getElementById('winnersHistoryContent');
+        const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+        const medals = ['🥇', '🥈', '🥉'];
+        
+        let html = '';
+        
+        groups.forEach(group => {
+            html += `
+                <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h4 style="margin-bottom: 20px; color: #1a202c; font-size: 20px; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px;">
+                        👨‍👩‍👦 ${group.group_name}
+                    </h4>
+                    <div style="display: grid; grid-template-columns: repeat(12, 1fr); gap: 15px; overflow-x: auto;">
+            `;
+            
+            group.winners.forEach(winner => {
+                const monthName = monthNames[winner.month - 1];
+                
+                if (winner.is_empty || !winner.students || winner.students.length === 0) {
+                    html += `
+                        <div style="text-align: center; padding: 12px; border: 2px dashed #e0e0e0; border-radius: 10px; background: #f8f9fa; min-width: 120px;">
+                            <div style="font-size: 11px; color: #95a5a6; margin-bottom: 8px; font-weight: 600;">${monthName}</div>
+                            <div style="font-size: 20px; color: #cbd5e0;">-</div>
+                            <div style="font-size: 10px; color: #95a5a6; margin-top: 5px;">Нет данных</div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div style="text-align: center; padding: 12px; border: 2px solid #f39c12; border-radius: 10px; background: linear-gradient(135deg, #fffbf0 0%, #fff9e6 100%); min-width: 120px;">
+                            <div style="font-size: 11px; color: #856404; margin-bottom: 10px; font-weight: 600;">${monthName}</div>
+                            <div style="display: flex; flex-direction: column; gap: 10px;">
+                    `;
+                    
+                    winner.students.forEach((student, index) => {
+                        const photoUrl = student.photo_path ? 
+                            `/static/${student.photo_path.replace('frontend/static/', '').replace(/\\/g, '/')}` : 
+                            null;
+                        const medal = medals[index] || '⭐';
+                        const placeholderId = `placeholder-${group.group_id}-${winner.month}-${index}`;
+                        
+                        html += `
+                            <div style="position: relative;">
+                                <div style="position: absolute; top: -8px; left: 50%; transform: translateX(-50%); font-size: 20px; z-index: 10;">${medal}</div>
+                                ${photoUrl ? 
+                                    `<img src="${photoUrl}" alt="${student.full_name}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #f39c12; margin: 8px auto 5px; display: block; box-shadow: 0 2px 6px rgba(243,156,18,0.3);" onerror="document.getElementById('${placeholderId}').style.display='flex'; this.style.display='none';">` : 
+                                    ''
+                                }
+                                <div id="${placeholderId}" style="width: 50px; height: 50px; border-radius: 50%; margin: 8px auto 5px; display: ${photoUrl ? 'none' : 'flex'}; align-items: center; justify-content: center; background: #ffe69c; font-size: 18px; border: 2px solid #f39c12; box-shadow: 0 2px 6px rgba(243,156,18,0.3);">👤</div>
+                                <div style="font-weight: bold; color: #2c3e50; font-size: 10px; margin-bottom: 3px; word-wrap: break-word; line-height: 1.2;">${student.full_name}</div>
+                                <div style="font-size: 11px; color: #f39c12; font-weight: bold;">⭐ ${student.points}</div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    }
+
+    // Reload on year change для рейтинга
+    if (ratingYearFilter) {
+        ratingYearFilter.addEventListener('change', (e) => {
+            loadWinnersHistory(parseInt(e.target.value));
+        });
+    }
+    </script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+</body>
+</html>

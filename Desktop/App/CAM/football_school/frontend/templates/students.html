@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ученики</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>⚽ {{ system_name }}</h2>
+            <button class="sidebar-toggle" aria-label="Свернуть меню">☰</button>
+        </div>
+        <nav>
+            <a href="{{ url_for('dashboard') }}" data-tooltip="Главная">📊 <span>Главная</span></a>
+            <a href="{{ url_for('students') }}" class="active" data-tooltip="Ученики">👥 <span>Ученики</span></a>
+            <a href="{{ url_for('groups_page') }}" data-tooltip="Группы">👨‍👩‍👦 <span>Группы</span></a>
+            <a href="{{ url_for('tariffs_page') }}" data-tooltip="Тарифы">💳 <span>Тарифы</span></a>
+            <a href="{{ url_for('finances_page') }}" data-tooltip="Финансы">💰 <span>Финансы</span></a>
+            <a href="{{ url_for('attendance_page') }}" data-tooltip="Посещаемость">📋 <span>Посещаемость</span></a>
+            <a href="{{ url_for('camera_page') }}" data-tooltip="Камера">📷 <span>Камера</span></a>
+            <a href="{{ url_for('rewards_page') }}" data-tooltip="Вознаграждения">🏆 <span>Вознаграждения</span></a>
+            <a href="{{ url_for('rating_page') }}" data-tooltip="Рейтинг учеников">⭐ <span>Рейтинг учеников</span></a>
+            <a href="{{ url_for('club_settings_page') }}" data-tooltip="Настройки">⚙️ <span>Настройки</span></a>
+            <a href="{{ url_for('logout') }}" data-tooltip="Выход">🚪 <span>Выход</span></a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <div class="page-header">
+            <h1>👥 Ученики</h1>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <button id="filterToggleBtn" class="btn-secondary" style="display: flex; align-items: center; gap: 8px;">
+                    <span>🔍</span>
+                    <span id="filterToggleText">Фильтр</span>
+                </button>
+                <button id="addStudentBtn" class="btn-primary">➕ Добавить ученика</button>
+            </div>
+        </div>
+        
+        <!-- Панель фильтров -->
+        <div id="filterPanel" class="filter-panel" style="display: none;">
+            <div class="filter-panel-content">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>🔍 Поиск по имени</label>
+                        <input type="text" id="filterName" placeholder="Введите имя или фамилию...">
+                    </div>
+                    <div class="filter-group">
+                        <label>👨‍👩‍👦 Группа</label>
+                        <select id="filterGroup">
+                            <option value="">Все группы</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>📊 Статус</label>
+                        <select id="filterStatus">
+                            <option value="">Все статусы</option>
+                            <option value="active">Активен</option>
+                            <option value="inactive">Неактивен</option>
+                            <option value="blacklist">Чёрный список</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>💰 Баланс</label>
+                        <select id="filterBalance">
+                            <option value="">Все</option>
+                            <option value="low">Мало занятий (≤2)</option>
+                            <option value="normal">Нормальный (>2)</option>
+                            <option value="club">Клубное финансирование</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button type="button" id="clearFiltersBtn" class="btn-secondary">🔄 Сбросить</button>
+                    <button type="button" id="applyFiltersBtn" class="btn-primary">✓ Применить</button>
+                </div>
+            </div>
+        </div>
+        
+        <table class="data-table" id="studentsTable">
+            <thead>
+                <tr>
+                    <th>Фото</th>
+                    <th>Номер</th>
+                    <th>Имя</th>
+                    <th>Группа</th>
+                    <th>Год рождения</th>
+                    <th>Дата принятия</th>
+                    <th>Телефон</th>
+                    <th>Дата последней оплаты</th>
+                    <th>Сумма оплаты</th>
+                    <th>Долг</th>
+                    <th>Баланс</th>
+                    <th>Баллы</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                {% set balance_value = balances.get(student.id) if balances else 0 %}
+                <tr class="{% if balance_value <= 2 %}low-balance{% endif %} {% if student.status == 'blacklist' %}blacklisted{% endif %}" data-student-id="{{ student.id }}" data-group-id="{{ student.group_id or '' }}" data-status="{{ student.status }}">
+                    <td>
+                        {% if student.photo_path %}
+                        <img src="{{ url_for('static', filename=student.photo_path.replace('frontend/static/', '').replace('\\', '/')) }}" class="student-avatar">
+                        {% else %}
+                        <div class="avatar-placeholder">👤</div>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ student.student_number }}</strong></td>
+                    {% set payment = payment_info.get(student.id) if payment_info else None %}
+                    <td>{{ student.full_name }}</td>
+                    <td>{{ student.group.name if student.group else 'Без группы' }}</td>
+                    <td>{{ student.birth_year or '-' }}</td>
+                    <td>{{ student.admission_date|format_date if student.admission_date else '-' }}</td>
+                    <td>{{ student.phone or '-' }}</td>
+                    <td>{{ payment.date if payment and payment.date else '-' }}</td>
+                    <td>
+                        {% if payment is not none and payment.amount is not none %}
+                            {{ payment.amount|format_thousand }}
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>
+                        {% if payment is not none and payment.debt is not none %}
+                            {{ payment.debt|format_thousand }}
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>
+                        {% if student.club_funded %}
+                        <span class="balance-badge" style="background: #9b59b6;">♾️ Клуб</span>
+                        {% else %}
+                        <span class="balance-badge {% if balance_value <= 2 %}low{% endif %}">
+                            {{ balance_value|format_thousand }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set points = student_points.get(student.id) if student_points else 0 %}
+                        <span class="points-badge" style="cursor: pointer; color: #f39c12; font-weight: bold;" data-student-id="{{ student.id }}" onclick="showRewardsHistory({{ student.id }})">
+                            ⭐ {{ points }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if student.status == 'active' %}
+                        <span style="color: #27ae60;">✓ Активен</span>
+                        {% elif student.status == 'inactive' %}
+                        <span style="color: #95a5a6;">○ Неактивен</span>
+                        {% elif student.status == 'blacklist' %}
+                        <span style="color: #e74c3c;">⚠️ ЧС</span>
+                        {% endif %}
+                    </td>
+                    <td class="action-buttons">
+                        <button class="btn-small btn-warning give-reward-btn" data-student-id="{{ student.id }}" title="Выдать вознаграждение">⭐</button>
+                        <button class="btn-small btn-success add-payment-btn" data-student-id="{{ student.id }}">💳</button>
+                        <button class="btn-small btn-info edit-student-btn" data-student-id="{{ student.id }}">✏️</button>
+                        <button class="btn-small btn-danger delete-student-btn" data-student-id="{{ student.id }}" data-student-name="{{ student.full_name }}">🗑️</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Модальное окно: Добавить ученика -->
+    <div id="addStudentModal" class="modal">
+        <div class="modal-content add-student-modal-content" style="max-width: 1600px; max-height: 95vh; overflow-y: auto;">
+            <span class="close">&times;</span>
+            <h2>Добавить ученика</h2>
+            
+            <form id="addStudentForm" enctype="multipart/form-data">
+                <div class="form-columns" style="display: grid; grid-template-columns: 1.2fr 1.2fr 1fr; gap: 24px; align-items: start;">
+                    <!-- Левая колонка -->
+                    <div>
+                        <!-- Основная информация -->
+                        <div class="form-block">
+                            <h3>👤 Основная информация</h3>
+                            <div class="form-group">
+                                <label>Фамилия *</label>
+                                <input type="text" name="last_name" id="last_name" required placeholder="Иванов">
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Имя *</label>
+                                    <input type="text" name="first_name" id="first_name" required placeholder="Иван">
+                                </div>
+                                <div class="form-group">
+                                    <label>Отчество</label>
+                                    <input type="text" name="middle_name" id="middle_name" placeholder="Иванович">
+                                </div>
+                            </div>
+                            <input type="hidden" name="full_name" id="full_name_hidden">
+
+                            <div class="form-group">
+                                <label>№ школы</label>
+                                <input type="text" name="school_number" placeholder="Школа № 12">
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Телефон ученика</label>
+                                    <input type="tel" name="phone" placeholder="+998 XX XXX XX XX">
+                                </div>
+                                <div class="form-group">
+                                    <label>Телефон родителя</label>
+                                    <input type="tel" name="parent_phone" placeholder="+998 XX XXX XX XX">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Фото *</label>
+                                <div class="photo-upload-container" id="add-photo-upload" tabindex="0">
+                                    <input type="file" name="photo" id="add_photo_input" accept="image/*" required style="display: none;">
+                                    <div class="photo-upload-area" id="add-photo-area">
+                                        <div class="photo-preview" id="add-photo-preview">
+                                            <div class="photo-placeholder">
+                                                <button type="button" class="photo-select-btn" id="add-photo-select-btn">
+                                                    <span class="photo-select-icon">+</span>
+                                                    <span class="photo-select-text">Выбрать</span>
+                                                </button>
+                                                <small class="photo-hint">Или нажмите в любом месте и вставьте фото (Ctrl+V)</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <small>Фото должно чётко показывать лицо</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Адрес -->
+                        <div class="form-block">
+                            <h3>📍 Адрес проживания</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Город</label>
+                                    <select name="city" id="citySelect">
+                                        <option value="">Выберите город</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Район</label>
+                                    <select name="district" id="districtSelect" disabled>
+                                        <option value="">Сначала выберите город</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Улица</label>
+                                    <input type="text" name="street" placeholder="Название улицы">
+                                </div>
+                                <div class="form-group">
+                                    <label>Дом/Квартира</label>
+                                    <input type="text" name="house_number" placeholder="Дом 12, кв. 45">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Средняя колонка -->
+                    <div>
+                        <!-- Учебные данные -->
+                        <div class="form-block">
+                            <h3>📌 Учебные данные</h3>
+                            <div class="form-group">
+                                <label>Номер ученика *</label>
+                                <input type="text" name="student_number" required placeholder="ST0001">
+                                <small>Введите уникальный номер, который присваивает администратор</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Дата принятия</label>
+                                <input type="date" name="admission_date" id="admission_date">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Группа</label>
+                                <select name="group_id" id="groupSelect">
+                                    <option value="">Без группы</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Статус</label>
+                                <select name="status" id="statusSelect" onchange="toggleBlacklistReason()">
+                                    <option value="active">Активный</option>
+                                    <option value="inactive">Неактивный</option>
+                                    <option value="blacklist">Чёрный список</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="blacklistReasonBlock" style="display: none;">
+                                <label>Причина добавления в чёрный список</label>
+                                <textarea name="blacklist_reason" rows="3" placeholder="Опишите причину..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Паспортные данные -->
+                        <div class="form-block">
+                            <h3>🆔 Паспортные данные</h3>
+                            <div class="form-row three-col">
+                                <div class="form-group">
+                                    <label>Год рождения</label>
+                                    <input type="number" name="birth_year" min="1900" max="2025" placeholder="2010">
+                                </div>
+                                <div class="form-group">
+                                    <label>Серия паспорта</label>
+                                    <input type="text" name="passport_series" placeholder="AA">
+                                </div>
+                                <div class="form-group">
+                                    <label>Номер паспорта</label>
+                                    <input type="text" name="passport_number" placeholder="1234567">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Кем выдан</label>
+                                <input type="text" name="passport_issued_by" placeholder="МВД РУз">
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Дата выдачи</label>
+                                    <input type="date" name="passport_issue_date">
+                                </div>
+                                <div class="form-group">
+                                    <label>Срок действия</label>
+                                    <input type="date" name="passport_expiry_date">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                        
+                    <!-- Правая колонка -->
+                    <div>
+                        <!-- Тариф -->
+                        <div class="form-block">
+                            <h3>💳 Тариф</h3>
+                            <div class="form-group">
+                                <label>Выберите тариф *</label>
+                                <select name="tariff_id" id="tariffSelect" required>
+                                    <option value="">Без тарифа</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Финансирование -->
+                        <div class="form-block">
+                            <h3>💰 Финансирование</h3>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="club_funded" value="true">
+                                    <span>Финансирование за счёт клуба</span>
+                                </label>
+                                <small style="display: block; margin-top: 5px; color: #7f8c8d;">
+                                    Ученик может посещать занятия без списания баланса
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary btn-large" style="margin-top: 20px; width: 100%;">➕ Добавить ученика</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Редактировать ученика -->
+    <div id="editStudentModal" class="modal">
+        <div class="modal-content edit-student-modal-content" style="max-width: 1600px; max-height: 95vh; overflow-y: auto;">
+            <span class="close">&times;</span>
+            <h2>Редактировать ученика</h2>
+            
+            <form id="editStudentForm" enctype="multipart/form-data">
+                <input type="hidden" id="edit_student_id">
+                
+                <div class="form-columns" style="display: grid; grid-template-columns: 1.2fr 1.2fr 1fr; gap: 24px; align-items: start;">
+                    <!-- Левая колонка -->
+                    <div>
+                        <!-- Основная информация -->
+                        <div class="form-block">
+                            <h3>👤 Основная информация</h3>
+                            <div class="form-group">
+                                <label>Фамилия *</label>
+                                <input type="text" id="edit_last_name" required>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Имя *</label>
+                                    <input type="text" id="edit_first_name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Отчество</label>
+                                    <input type="text" id="edit_middle_name" placeholder="Иванович">
+                                </div>
+                            </div>
+                            <input type="hidden" id="edit_full_name" name="full_name" required>
+
+                            <div class="form-group">
+                                <label>№ школы</label>
+                                <input type="text" id="edit_school_number" name="school_number" placeholder="Школа № 12">
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Телефон</label>
+                                    <input type="tel" id="edit_phone" name="phone" placeholder="+998 90 123 45 67">
+                                </div>
+                                <div class="form-group">
+                                    <label>Телефон родителя</label>
+                                    <input type="tel" id="edit_parent_phone" name="parent_phone" placeholder="+998 90 123 45 67">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Фото (оставьте пустым, чтобы не менять)</label>
+                                <div class="photo-upload-container" id="edit-photo-upload" tabindex="0">
+                                    <input type="file" id="edit_photo" name="photo" accept="image/*" style="display: none;">
+                                    <div class="photo-upload-area" id="edit-photo-area">
+                                        <div class="photo-preview" id="edit-photo-preview">
+                                            <div class="photo-placeholder">
+                                                <button type="button" class="photo-select-btn" id="edit-photo-select-btn">
+                                                    <span class="photo-select-icon">+</span>
+                                                    <span class="photo-select-text">Выбрать</span>
+                                                </button>
+                                                <small class="photo-hint">Или нажмите в любом месте и вставьте фото (Ctrl+V)</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Адрес -->
+                        <div class="form-block">
+                            <h3>📍 Адрес</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Город</label>
+                                    <select id="edit_citySelect" name="city">
+                                        <option value="">Выберите город</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Район</label>
+                                    <select id="edit_districtSelect" name="district" disabled>
+                                        <option value="">Сначала выберите город</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Улица</label>
+                                    <input type="text" id="edit_street" name="street">
+                                </div>
+                                <div class="form-group">
+                                    <label>Дом</label>
+                                    <input type="text" id="edit_house_number" name="house_number">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Средняя колонка -->
+                    <div>
+                        <!-- Учебные данные -->
+                        <div class="form-block">
+                            <h3>📌 Учебные данные</h3>
+                            <div class="form-group">
+                                <label>Номер ученика *</label>
+                                <input type="text" id="edit_student_number" name="student_number" required>
+                                <small>Используйте уникальный номер, известный администраторам</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Дата принятия</label>
+                                <input type="date" id="edit_admission_date" name="admission_date">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Группа</label>
+                                <select id="edit_groupSelect" name="group_id">
+                                    <option value="">Без группы</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Статус</label>
+                                <select id="edit_statusSelect" name="status" onchange="toggleEditBlacklistReason()">
+                                    <option value="active">Активен</option>
+                                    <option value="inactive">Неактивен</option>
+                                    <option value="blacklist">Чёрный список</option>
+                                </select>
+                            </div>
+
+                            <div id="edit_blacklistReasonBlock" class="form-group" style="display: none;">
+                                <label>Причина добавления в чёрный список</label>
+                                <textarea id="edit_blacklist_reason" name="blacklist_reason" rows="3" placeholder="Опишите причину..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Паспортные данные -->
+                        <div class="form-block">
+                            <h3>📄 Паспортные данные</h3>
+                            <div class="form-group">
+                                <label>Год рождения</label>
+                                <input type="number" id="edit_birth_year" name="birth_year" min="1950" max="2020" placeholder="2010">
+                            </div>
+                            
+                            <div class="form-row three-col">
+                                <div class="form-group">
+                                    <label>Серия</label>
+                                    <input type="text" id="edit_passport_series" name="passport_series" placeholder="AB">
+                                </div>
+                                <div class="form-group">
+                                    <label>Номер</label>
+                                    <input type="text" id="edit_passport_number" name="passport_number" placeholder="1234567">
+                                </div>
+                                <div class="form-group">
+                                    <label>Кем выдан</label>
+                                    <input type="text" id="edit_passport_issued_by" name="passport_issued_by" placeholder="IIB">
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Дата выдачи</label>
+                                    <input type="date" id="edit_passport_issue_date" name="passport_issue_date">
+                                </div>
+                                <div class="form-group">
+                                    <label>Срок действия</label>
+                                    <input type="date" id="edit_passport_expiry_date" name="passport_expiry_date">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                        
+                    <!-- Правая колонка -->
+                    <div>
+                        <!-- Тариф -->
+                        <div class="form-block">
+                            <h3>💳 Тариф</h3>
+                            <div class="form-group">
+                                <label>Выберите тариф *</label>
+                                <select id="edit_tariffSelect" name="tariff_id" required>
+                                    <option value="">Без тарифа</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Финансирование -->
+                        <div class="form-block">
+                            <h3>💰 Финансирование</h3>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="edit_club_funded" name="club_funded" value="true">
+                                    <span>Финансирование за счёт клуба</span>
+                                </label>
+                                <small style="display: block; margin-top: 5px; color: #7f8c8d;">
+                                    Ученик может посещать занятия без списания баланса
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary btn-large" style="margin-top: 20px; width: 100%;">💾 Сохранить изменения</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Оплата -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-content payment-modal-content" style="max-width: 1000px;">
+            <span class="close">&times;</span>
+            <div class="payment-modal-header">
+                <div class="payment-modal-icon">💳</div>
+                <div>
+                    <h2 class="payment-modal-title">Добавить оплату</h2>
+                    <p class="payment-modal-subtitle">Выберите месяц для записи оплаты</p>
+                </div>
+            </div>
+            
+            <form id="paymentForm">
+                <input type="hidden" id="payment_student_id">
+                <input type="hidden" id="student_tariff_price">
+                
+                <!-- Переключатель года -->
+                <div class="payment-year-navigation">
+                    <button type="button" class="payment-year-btn" id="prevYearBtn">
+                        <span class="year-arrow">←</span>
+                        <span id="prevYear"></span>
+                    </button>
+                    <div class="payment-year-display">
+                        <span id="currentYear" class="current-year-text"></span>
+                    </div>
+                    <button type="button" class="payment-year-btn" id="nextYearBtn">
+                        <span id="nextYear"></span>
+                        <span class="year-arrow">→</span>
+                    </button>
+                </div>
+
+                <!-- Основной контент: месяцы слева, форма справа -->
+                <div class="payment-content-layout">
+                    <!-- Левая часть: список месяцев -->
+                    <div class="payment-months-container">
+                        <div id="monthlyPayments" class="payment-months-list">
+                            <!-- Месяцы генерируются через JS -->
+                        </div>
+                    </div>
+
+                    <!-- Правая часть: форма оплаты -->
+                    <div id="paymentInputSection" class="payment-input-section" style="display: none;">
+                        <div class="payment-input-header">
+                            <h3>Оплата за <span id="selectedMonthName" class="selected-month-name"></span></h3>
+                        </div>
+                        
+                        <!-- История частичных оплат -->
+                        <div id="partialPaymentsHistory" class="partial-payments-history">
+                            <!-- Генерируется через JS -->
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>
+                                    <span style="margin-right: 6px;">📅</span>
+                                    Дата оплаты
+                                </label>
+                                <input type="date" id="payment_date" required class="form-input-modern">
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <span style="margin-right: 6px;">💰</span>
+                                    Сумма оплаты (сум) *
+                                </label>
+                                <input type="number" id="payment_amount" required min="0" step="1000" placeholder="Введите сумму" class="form-input-modern">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                <span style="margin-right: 6px;">📝</span>
+                                Примечание
+                            </label>
+                            <textarea id="payment_notes" rows="3" placeholder="Комментарий к оплате" class="form-input-modern"></textarea>
+                        </div>
+
+                        <div class="payment-form-actions">
+                            <button type="submit" class="btn-payment-submit">
+                                <span class="btn-icon">💰</span>
+                                <span>Добавить оплату</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Если месяц не выбран - показываем подсказку справа -->
+                    <div id="noMonthSelected" class="payment-no-selection">
+                        <div class="no-selection-icon">👆</div>
+                        <p>Выберите месяц для добавления оплаты</p>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Редактировать оплату -->
+    <div id="editPaymentModal" class="modal">
+        <div class="modal-content simple-modal" style="max-width: 600px;">
+            <span class="close edit-payment-close" aria-label="Закрыть">&times;</span>
+            <h2>Редактировать оплату</h2>
+            <form id="editPaymentForm">
+                <input type="hidden" id="edit_payment_id">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Дата оплаты</label>
+                        <input type="date" id="edit_payment_date" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Сумма (сум) *</label>
+                        <input type="number" id="edit_payment_amount" min="1" step="1000" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Примечание</label>
+                    <textarea id="edit_payment_notes" rows="2"></textarea>
+                </div>
+                <button type="submit" class="btn-primary">Сохранить</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Выдать вознаграждение -->
+    <div id="giveRewardModal" class="modal">
+        <div class="modal-content simple-modal" style="max-width: 500px;">
+            <span class="close give-reward-close" aria-label="Закрыть">&times;</span>
+            <h2>⭐ Выдать вознаграждение</h2>
+            <p id="reward-student-name" style="font-size: 16px; margin-bottom: 20px; color: #2c3e50;"></p>
+            <form id="giveRewardForm">
+                <input type="hidden" id="reward_student_id">
+                <div class="form-group">
+                    <label>Тип вознаграждения *</label>
+                    <select id="reward_type_select" required>
+                        <option value="">Выберите тип вознаграждения</option>
+                        <!-- Заполнится через JS -->
+                    </select>
+                </div>
+                <button type="submit" class="btn-primary btn-large" style="width: 100%;">⭐ Выдать</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно: История баллов -->
+    <div id="rewardsHistoryModal" class="modal">
+        <div class="modal-content simple-modal" style="max-width: 600px;">
+            <span class="close rewards-history-close" aria-label="Закрыть">&times;</span>
+            <h2>⭐ История баллов</h2>
+            <p id="history-student-name" style="font-size: 16px; margin-bottom: 20px; color: #2c3e50;"></p>
+            <div id="rewardsHistoryList" style="max-height: 400px; overflow-y: auto;">
+                <!-- Заполнится через JS -->
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/students.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+</body>
+</html>
